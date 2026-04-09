@@ -8,8 +8,7 @@ const { RouterOSService } = require('./routeros');
 class Poller {
     constructor() {
         this.pihole = new PiholeClient(
-            process.env.PIHOLE_URL,
-            process.env.PIHOLE_PASSWORD
+            process.env.PROMETHEUS_URL
         );
         this.prometheus = new PrometheusClient(
             process.env.PROMETHEUS_URL

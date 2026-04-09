@@ -1,79 +1,52 @@
-// Pi-hole v6 API client — handles SID auth, HTTPS with self-signed certs
+// Pi-hole stats via Prometheus pihole-exporter (10.40.40.2:9617)
+// RPi can't reach 172.17.0.2 directly (Docker bridge collision)
+// So we pull stats from pihole-exporter's Prometheus metrics instead
 
 class PiholeClient {
-    constructor(baseUrl, password) {
-        this.baseUrl = (baseUrl || 'http://172.17.0.2').replace(/\/+$/, '');
-        this.password = password;
-        this.sid = null;
+    constructor(prometheusUrl) {
+        this.prometheusUrl = (prometheusUrl || 'http://127.0.0.1:9090').replace(/\/+$/, '');
     }
 
-    async authenticate() {
+    async query(promql) {
         try {
-            var res = await fetch(this.baseUrl + '/api/auth', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: this.password })
-            });
-            var data = await res.json();
-            if (data.session && data.session.sid) {
-                this.sid = data.session.sid;
-                console.log('[HCC] Pi-hole authenticated (SID obtained)');
-                return true;
-            }
-            console.error('[HCC] Pi-hole auth response:', JSON.stringify(data).substring(0, 200));
-            return false;
-        } catch (err) {
-            console.error('[HCC] Pi-hole auth error:', err.message);
-            return false;
-        }
-    }
-
-    async apiFetch(path) {
-        if (!this.sid) {
-            var authed = await this.authenticate();
-            if (!authed) return null;
-        }
-
-        var sep = path.indexOf('?') !== -1 ? '&' : '?';
-        var url = this.baseUrl + path + sep + 'sid=' + this.sid;
-
-        try {
-            var res = await fetch(url);
-            if (res.status === 401) {
-                this.sid = null;
-                var reauthed = await this.authenticate();
-                if (!reauthed) return null;
-                url = this.baseUrl + path + sep + 'sid=' + this.sid;
-                res = await fetch(url);
-            }
+            var url = this.prometheusUrl + '/api/v1/query?query=' + encodeURIComponent(promql);
+            var res = await fetch(url, { signal: AbortSignal.timeout(10000) });
             if (!res.ok) return null;
-            return await res.json();
+            var data = await res.json();
+            if (data.status !== 'success' || !data.data.result.length) return null;
+            return parseFloat(data.data.result[0].value[1]);
         } catch (err) {
-            console.error('[HCC] Pi-hole fetch error (' + path + '):', err.message);
+            console.error('[HCC] Pi-hole query error:', err.message);
             return null;
         }
     }
 
     async poll() {
         try {
-            var summary = await this.apiFetch('/api/stats/summary');
-            if (!summary) return null;
+            var results = await Promise.all([
+                this.query('pihole_dns_queries_today'),
+                this.query('pihole_ads_blocked_today'),
+                this.query('pihole_ads_percentage_today'),
+                this.query('pihole_domains_being_blocked'),
+                this.query('pihole_unique_clients'),
+                this.query('pihole_dns_queries_all_types'),
+                this.query('pihole_status')
+            ]);
 
-            var topBlocked = await this.apiFetch('/api/stats/top_domains?blocked=true&count=10');
-            var topDomains = await this.apiFetch('/api/stats/top_domains?count=10');
-            var recentQueries = await this.apiFetch('/api/queries?length=20');
+            var totalQueries = results[0];
+            if (totalQueries === null) return null;
 
             return {
-                totalQueries: summary.queries ? summary.queries.total : 0,
-                blockedQueries: summary.queries ? summary.queries.blocked : 0,
-                percentBlocked: summary.queries ? summary.queries.percent_blocked : 0,
-                gravitySize: summary.gravity ? summary.gravity.domains_being_blocked : 0,
-                status: summary.ftl ? summary.ftl.status : 'unknown',
-                clients: summary.clients ? summary.clients.total : 0,
-                uniqueDomains: summary.queries ? summary.queries.unique_domains : 0,
-                topDomains: topDomains ? (topDomains.top_domains || []) : [],
-                topBlocked: topBlocked ? (topBlocked.top_domains || []) : [],
-                recentQueries: recentQueries ? (recentQueries.queries || []).slice(0, 10) : []
+                totalQueries: Math.floor(results[0] || 0),
+                blockedQueries: Math.floor(results[1] || 0),
+                percentBlocked: results[2] || 0,
+                gravitySize: Math.floor(results[3] || 0),
+                clients: Math.floor(results[4] || 0),
+                allTypes: Math.floor(results[5] || 0),
+                status: results[6] === 1 ? 'enabled' : 'disabled',
+                topDomains: [],
+                topBlocked: [],
+                recentQueries: []
             };
         } catch (err) {
             console.error('[HCC] Pi-hole poll error:', err.message);

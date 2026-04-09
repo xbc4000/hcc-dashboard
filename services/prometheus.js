@@ -20,10 +20,12 @@ class PrometheusClient {
     }
 
     async getServerHealth() {
-        var instances = {
-            per730xd: process.env.SERVER1_INSTANCE || '10.10.10.2:9100',
-            per630: process.env.SERVER2_INSTANCE || '10.20.20.2:9100'
-        };
+        var instances = {};
+        if (process.env.SERVER1_INSTANCE) instances.per730xd = process.env.SERVER1_INSTANCE;
+        if (process.env.SERVER2_INSTANCE) instances.per630 = process.env.SERVER2_INSTANCE;
+        if (process.env.RPI_INSTANCE) instances.rpi = process.env.RPI_INSTANCE;
+        // Default: at least show RPi
+        if (Object.keys(instances).length === 0) instances.rpi = '10.40.40.2:9100';
 
         var queries = {
             cpu: '100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
