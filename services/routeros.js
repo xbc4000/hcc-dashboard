@@ -41,7 +41,7 @@ class RouterOSService {
 
     encodeSentence(words) {
         var parts = words.map(this.encodeWord.bind(this));
-        parts.push(Buffer.from([0])); // empty word = end of sentence
+        parts.push(Buffer.from([0]));
         return Buffer.concat(parts);
     }
 
@@ -50,9 +50,7 @@ class RouterOSService {
     connect() {
         var self = this;
         return new Promise(function(resolve, reject) {
-            if (self.socket) {
-                try { self.socket.destroy(); } catch(e) {}
-            }
+            if (self.socket) { try { self.socket.destroy(); } catch(e) {} }
             self.buffer = Buffer.alloc(0);
             self.connected = false;
 
@@ -79,24 +77,19 @@ class RouterOSService {
         var self = this;
         return new Promise(function(resolve, reject) {
             var words = [];
-            var timeout = setTimeout(function() {
-                reject(new Error('Read timeout'));
-            }, 15000);
+            var timeout = setTimeout(function() { reject(new Error('Read timeout')); }, 15000);
 
             function tryParse() {
                 while (true) {
                     if (self.buffer.length === 0) return false;
                     var decoded = self.decodeLength(self.buffer, 0);
                     if (self.buffer.length < decoded.size + decoded.len) return false;
-
                     if (decoded.len === 0) {
-                        // End of sentence
                         self.buffer = self.buffer.slice(decoded.size);
                         clearTimeout(timeout);
                         resolve(words);
                         return true;
                     }
-
                     var word = self.buffer.slice(decoded.size, decoded.size + decoded.len).toString('utf8');
                     self.buffer = self.buffer.slice(decoded.size + decoded.len);
                     words.push(word);
@@ -117,7 +110,6 @@ class RouterOSService {
                 self.socket.removeListener('data', onData);
                 reject(err);
             }
-
             self.socket.on('data', onData);
             self.socket.once('error', onError);
         });
@@ -129,12 +121,9 @@ class RouterOSService {
     }
 
     async login() {
-        // Try new-style login first (RouterOS 6.43+)
         this.writeSentence(['/login', '=name=' + this.user, '=password=' + this.password]);
         var reply = await this.readSentence();
-
         if (reply[0] === '!done') {
-            // Check if challenge-response needed (old style)
             var ret = reply.find(function(w) { return w.startsWith('=ret='); });
             if (ret) {
                 var challenge = Buffer.from(ret.substring(5), 'hex');
@@ -159,14 +148,10 @@ class RouterOSService {
 
     async command(cmd, params) {
         if (!this.connected) await this.connect();
-
         var words = [cmd];
         if (params) {
-            for (var key in params) {
-                words.push('=' + key + '=' + params[key]);
-            }
+            for (var key in params) { words.push('=' + key + '=' + params[key]); }
         }
-
         this.writeSentence(words);
 
         var results = [];
@@ -193,10 +178,7 @@ class RouterOSService {
     }
 
     disconnect() {
-        if (this.socket) {
-            try { this.socket.destroy(); } catch(e) {}
-            this.socket = null;
-        }
+        if (this.socket) { try { this.socket.destroy(); } catch(e) {} this.socket = null; }
         this.connected = false;
     }
 
@@ -206,11 +188,8 @@ class RouterOSService {
         var entries = await this.command('/tool/netwatch/print');
         return entries.map(function(e) {
             return {
-                host: e.host || '',
-                comment: e.comment || e.host || '',
-                status: e.status || 'unknown',
-                since: e.since || '',
-                type: e.type || 'simple'
+                host: e.host || '', comment: e.comment || e.host || '',
+                status: e.status || 'unknown', since: e.since || '', type: e.type || 'simple'
             };
         });
     }
@@ -220,23 +199,90 @@ class RouterOSService {
         if (!res[0]) return null;
         var r = res[0];
         return {
-            uptime: r.uptime || '',
-            cpuLoad: parseInt(r['cpu-load']) || 0,
-            freeMemory: parseInt(r['free-memory']) || 0,
-            totalMemory: parseInt(r['total-memory']) || 0,
-            freeHdd: parseInt(r['free-hdd-space']) || 0,
-            totalHdd: parseInt(r['total-hdd-space']) || 0,
-            architecture: r['architecture-name'] || '',
-            boardName: r['board-name'] || '',
-            version: r.version || ''
+            uptime: r.uptime || '', cpuLoad: parseInt(r['cpu-load']) || 0,
+            freeMemory: parseInt(r['free-memory']) || 0, totalMemory: parseInt(r['total-memory']) || 0,
+            freeHdd: parseInt(r['free-hdd-space']) || 0, totalHdd: parseInt(r['total-hdd-space']) || 0,
+            architecture: r['architecture-name'] || '', boardName: r['board-name'] || '', version: r.version || ''
         };
+    }
+
+    async getDHCPLeases() {
+        var entries = await this.command('/ip/dhcp-server/lease/print');
+        return entries.map(function(e) {
+            return {
+                address: e.address || '', macAddress: e['mac-address'] || '',
+                hostName: e['host-name'] || '', server: e.server || '',
+                status: e.status || '', lastSeen: e['last-seen'] || '',
+                comment: e.comment || ''
+            };
+        });
+    }
+
+    async getInterfaces() {
+        var entries = await this.command('/interface/print');
+        return entries.filter(function(e) {
+            return e.running === 'true' && e.type !== 'loopback';
+        }).map(function(e) {
+            return {
+                name: e.name || '', type: e.type || '', running: true,
+                rxBytes: parseInt(e['rx-byte']) || 0, txBytes: parseInt(e['tx-byte']) || 0,
+                rxPackets: parseInt(e['rx-packet']) || 0, txPackets: parseInt(e['tx-packet']) || 0,
+                link: e['link-downs'] || '0'
+            };
+        });
+    }
+
+    async getFirewallCounters() {
+        var entries = await this.command('/ip/firewall/filter/print');
+        var counters = { totalRules: entries.length, dropRules: 0, totalDropped: 0, topDrops: [] };
+        entries.forEach(function(e) {
+            if (e.action === 'drop') {
+                counters.dropRules++;
+                var bytes = parseInt(e.bytes) || 0;
+                var packets = parseInt(e.packets) || 0;
+                counters.totalDropped += packets;
+                if (packets > 0) {
+                    counters.topDrops.push({ comment: e.comment || 'unnamed', packets: packets, bytes: bytes });
+                }
+            }
+        });
+        counters.topDrops.sort(function(a, b) { return b.packets - a.packets; });
+        counters.topDrops = counters.topDrops.slice(0, 8);
+        return counters;
+    }
+
+    async getAddressLists() {
+        var entries = await this.command('/ip/firewall/address-list/print');
+        var lists = {};
+        entries.forEach(function(e) {
+            var list = e.list || 'unknown';
+            if (!lists[list]) lists[list] = 0;
+            lists[list]++;
+        });
+        return lists;
+    }
+
+    async getLogs(count) {
+        var entries = await this.command('/log/print');
+        return entries.slice(-(count || 20)).map(function(e) {
+            return { time: e.time || '', topics: e.topics || '', message: e.message || '' };
+        });
     }
 
     async poll() {
         try {
             var netwatch = await this.getNetwatch();
             var system = await this.getSystemResource();
-            return { netwatch: netwatch, system: system };
+            var dhcp = await this.getDHCPLeases();
+            var interfaces = await this.getInterfaces();
+            var firewall = await this.getFirewallCounters();
+            var addressLists = await this.getAddressLists();
+            var logs = await this.getLogs(15);
+            return {
+                netwatch: netwatch, system: system, dhcp: dhcp,
+                interfaces: interfaces, firewall: firewall,
+                addressLists: addressLists, logs: logs
+            };
         } catch (err) {
             console.error('[HCC] RouterOS poll error:', err.message);
             this.disconnect();

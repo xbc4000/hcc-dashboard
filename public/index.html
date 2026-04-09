@@ -9,6 +9,11 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Data Rain Background -->
+    <div id="data-rain"></div>
+    <!-- Particle Field -->
+    <div id="particle-bg"></div>
+
     <!-- Header HUD -->
     <header id="hcc-header">
         <div class="header-left">
@@ -25,7 +30,9 @@
             <div id="hcc-date">---</div>
         </div>
         <div class="header-right">
-            <span style="color:var(--orange);letter-spacing:3px;font-weight:700;font-size:0.75rem;">SESSION</span>
+            <span id="hcc-threat" style="font-size:0.7rem;font-weight:700;letter-spacing:2px;padding:2px 8px;border:1px solid;">LOW</span>
+            <div class="header-divider"></div>
+            <span style="color:var(--orange);letter-spacing:3px;font-weight:700;font-size:0.7rem;">SESSION</span>
             <span id="hcc-session" style="color:var(--orange);font-weight:800;letter-spacing:3px;">00:00</span>
             <div class="header-divider"></div>
             <span class="hostname-badge">HCC-DASHBOARD</span>
@@ -64,13 +71,38 @@
             <div class="hcc-panel-body" id="targets-body"><div class="panel-loading">CONNECTING...</div></div>
         </section>
 
+        <section class="hcc-panel" id="panel-firewall">
+            <div class="hcc-panel-header"><div class="dot" style="background:var(--red);box-shadow:0 0 6px var(--red);"></div>FIREWALL</div>
+            <div class="hcc-panel-body" id="firewall-body"><div class="panel-loading">CONNECTING...</div></div>
+        </section>
+
+        <section class="hcc-panel" id="panel-dhcp">
+            <div class="hcc-panel-header"><div class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple);"></div>DHCP LEASES</div>
+            <div class="hcc-panel-body" id="dhcp-body"><div class="panel-loading">CONNECTING...</div></div>
+        </section>
+
+        <section class="hcc-panel" id="panel-bandwidth">
+            <div class="hcc-panel-header"><div class="dot" style="background:var(--green);box-shadow:0 0 6px var(--green);"></div>NETWORK BANDWIDTH</div>
+            <div class="hcc-panel-body" id="bandwidth-body"><div class="panel-loading">CONNECTING...</div></div>
+        </section>
+
+        <section class="hcc-panel" id="panel-logs">
+            <div class="hcc-panel-header"><div class="dot" style="background:var(--orange);box-shadow:0 0 6px var(--orange);"></div>ROUTER LOG</div>
+            <div class="hcc-panel-body" id="logs-body"><div class="panel-loading">CONNECTING...</div></div>
+        </section>
+
         <section class="hcc-panel span-full" id="panel-links">
             <div class="hcc-panel-header"><div class="dot"></div>QUICK LINKS</div>
             <div class="hcc-panel-body" id="links-body"><div class="panel-loading">CONNECTING...</div></div>
         </section>
     </main>
 
-    <div id="particle-bg"></div>
+    <!-- Blocked Domain Ticker -->
+    <div id="hcc-ticker">
+        <div id="ticker-label">BLOCKED</div>
+        <div id="ticker-track"><div id="ticker-content">Loading blocked domains...</div></div>
+    </div>
+
     <script src="/js/effects.js"></script>
     <script src="/js/dashboard.js"></script>
 </body>

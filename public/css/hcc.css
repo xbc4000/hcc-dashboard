@@ -15,6 +15,7 @@
     --red: #ff2244;
     --purple: #B986F2;
     --gold: #FFD700;
+    --magenta: #FF00B2;
     --text: #99aad0;
     --text-bright: #d0ddf0;
     --text-muted: #556688;
@@ -642,6 +643,95 @@ body {
 .span-full {
     grid-column: 1 / -1;
 }
+
+/* ── DATA RAIN ──────────────────────────────────────────── */
+
+#data-rain {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.rain-column {
+    position: absolute;
+    top: -20%;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--cyan);
+    white-space: pre;
+    line-height: 1.4;
+    animation: rainFall linear infinite;
+}
+
+@keyframes rainFall {
+    0% { top: -20%; }
+    100% { top: 120%; }
+}
+
+/* ── SCAN LINE ─────────────────────────────────────────── */
+
+#hcc-scanline {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 2px;
+    background: linear-gradient(90deg, transparent 5%, rgba(0,183,255,0.4) 20%, rgba(0,212,255,0.7) 50%, rgba(0,183,255,0.4) 80%, transparent 95%);
+    pointer-events: none; z-index: 9999;
+    box-shadow: 0 0 12px rgba(0,183,255,0.4), 0 0 30px rgba(0,183,255,0.15);
+    animation: hccScanSweep 6s linear infinite;
+}
+
+/* ── TICKER ─────────────────────────────────────────────── */
+
+#hcc-ticker {
+    position: fixed;
+    bottom: 0; left: 0; width: 100%;
+    background: rgba(0,0,0,0.95);
+    border-top: 1px solid rgba(255,34,68,0.3);
+    display: flex;
+    align-items: center;
+    height: 28px;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+#ticker-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--red);
+    letter-spacing: 3px;
+    padding: 0 12px;
+    flex-shrink: 0;
+    border-right: 1px solid rgba(255,34,68,0.3);
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(255,34,68,0.5);
+}
+
+#ticker-track {
+    overflow: hidden;
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+#ticker-content {
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--orange);
+    letter-spacing: 2px;
+    animation: tickerScroll 40s linear infinite;
+}
+
+@keyframes tickerScroll {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}
+
+/* ── STAT BOX PURPLE ───────────────────────────────────── */
+
+.stat-box-value.purple { color: var(--purple); text-shadow: 0 0 12px rgba(185,134,242,0.4); }
 
 /* ── RESPONSIVE ────────────────────────────────────────── */
 
