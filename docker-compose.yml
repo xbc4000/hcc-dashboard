@@ -3,8 +3,7 @@ services:
     build: .
     container_name: hcc-dashboard
     restart: unless-stopped
-    ports:
-      - "3080:3080"
+    network_mode: host
     env_file:
       - .env
     environment:
