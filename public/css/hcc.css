@@ -424,7 +424,7 @@ body.hcc-edit-mode .hcc-panel {
 
 .hcc-panel:hover {
     border-color: var(--border-glow);
-    box-shadow: 0 0 20px rgba(0,183,255,0.06);
+    box-shadow: 0 0 25px rgba(0,183,255,0.1), 0 0 50px rgba(0,183,255,0.04);
 }
 
 .hcc-panel-header {
@@ -817,6 +817,11 @@ body.hcc-edit-mode .hcc-panel {
     border-right: 2px solid rgba(0,183,255,0.3);
 }
 
+.ph-domain-bar.client {
+    background: rgba(185,134,242,0.12);
+    border-right: 2px solid rgba(185,134,242,0.4);
+}
+
 .ph-domain-name {
     position: relative;
     z-index: 1;
@@ -935,11 +940,11 @@ body.hcc-edit-mode .hcc-panel {
 
 #hcc-scanline {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 2px;
-    background: linear-gradient(90deg, transparent 5%, rgba(0,183,255,0.4) 20%, rgba(0,212,255,0.7) 50%, rgba(0,183,255,0.4) 80%, transparent 95%);
+    top: 0; left: 0; width: 100%; height: 3px;
+    background: linear-gradient(90deg, transparent 5%, rgba(0,183,255,0.5) 20%, rgba(0,212,255,0.9) 50%, rgba(0,183,255,0.5) 80%, transparent 95%);
     pointer-events: none; z-index: 9999;
-    box-shadow: 0 0 12px rgba(0,183,255,0.4), 0 0 30px rgba(0,183,255,0.15);
-    animation: hccScanSweep 6s linear infinite;
+    box-shadow: 0 0 20px rgba(0,183,255,0.6), 0 0 50px rgba(0,183,255,0.25);
+    animation: hccScanSweep 5s linear infinite;
 }
 
 /* ── TICKER ─────────────────────────────────────────────── */

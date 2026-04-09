@@ -225,9 +225,12 @@
             html += '<div class="ph-section">';
             html += '<div class="stat-label" style="margin-bottom:6px;">TOP CLIENTS</div>';
             pihole.topSources.forEach(function(c) {
-                html += '<div class="service-row">';
-                html += '<span style="color:var(--text-bright);">'+esc(c.client)+'</span>';
-                html += '<span style="color:var(--purple);font-weight:700;">'+fmtNum(c.count)+'</span>';
+                var maxCount = pihole.topSources[0].count || 1;
+                var pct = (c.count / maxCount * 100);
+                html += '<div class="ph-domain-row">';
+                html += '<div class="ph-domain-bar client" style="width:'+pct+'%;"></div>';
+                html += '<span class="ph-domain-name" style="color:var(--purple);">'+esc(c.client)+'</span>';
+                html += '<span class="ph-domain-count">'+fmtNum(c.count)+'</span>';
                 html += '</div>';
             });
             html += '</div>';
@@ -472,8 +475,9 @@
     // ── PANEL FLASH ──
     function flashPanels() {
         document.querySelectorAll('.hcc-panel').forEach(function(p) {
-            p.style.borderColor = 'rgba(0,183,255,0.3)';
-            setTimeout(function() { p.style.borderColor = ''; }, 300);
+            p.style.borderColor = 'rgba(0,183,255,0.4)';
+            p.style.boxShadow = '0 0 15px rgba(0,183,255,0.1)';
+            setTimeout(function() { p.style.borderColor = ''; p.style.boxShadow = ''; }, 400);
         });
     }
 

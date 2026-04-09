@@ -59,34 +59,43 @@ class PiholeClient {
             var totalQueries = results[0];
             if (totalQueries === null) return null;
 
-            // Parse query types — label: "type"
+            // Helper: extract the first meaningful label value from a Prometheus metric
+            var SKIP_LABELS = { __name__: 1, job: 1, instance: 1 };
+            function extractLabel(metric) {
+                for (var key in metric) {
+                    if (!SKIP_LABELS[key]) return metric[key];
+                }
+                return 'unknown';
+            }
+
+            // Parse query types
             var queryTypes = results[10].map(function(r) {
-                return { type: r.metric.type || r.metric.name || 'unknown', count: parseFloat(r.value[1]) };
+                return { type: extractLabel(r.metric), count: parseFloat(r.value[1]) };
             }).filter(function(q) { return q.count > 0; }).sort(function(a, b) { return b.count - a.count; });
 
-            // Parse forward destinations — label: "destination"
+            // Parse forward destinations
             var upstreams = results[11].map(function(r) {
-                return { name: r.metric.destination || r.metric.dst || 'unknown', pct: parseFloat(r.value[1]) };
+                return { name: extractLabel(r.metric), pct: parseFloat(r.value[1]) };
             }).sort(function(a, b) { return b.pct - a.pct; });
 
-            // Parse top blocked — label: "domain"
+            // Parse top blocked
             var topBlocked = results[12].map(function(r) {
-                return { domain: r.metric.domain || 'unknown', count: Math.floor(parseFloat(r.value[1])) };
+                return { domain: extractLabel(r.metric), count: Math.floor(parseFloat(r.value[1])) };
             }).slice(0, 8);
 
-            // Parse top queries — label: "domain"
+            // Parse top queries
             var topQueries = results[13].map(function(r) {
-                return { domain: r.metric.domain || 'unknown', count: Math.floor(parseFloat(r.value[1])) };
+                return { domain: extractLabel(r.metric), count: Math.floor(parseFloat(r.value[1])) };
             }).slice(0, 5);
 
-            // Parse top sources — label: "client"
+            // Parse top sources
             var topSources = results[14].map(function(r) {
-                return { client: r.metric.client || 'unknown', count: Math.floor(parseFloat(r.value[1])) };
+                return { client: extractLabel(r.metric), count: Math.floor(parseFloat(r.value[1])) };
             }).slice(0, 5);
 
-            // Parse reply types — label: "type"
+            // Parse reply types
             var replyTypes = results[15].map(function(r) {
-                return { type: r.metric.type || 'unknown', count: parseFloat(r.value[1]) };
+                return { type: extractLabel(r.metric), count: parseFloat(r.value[1]) };
             }).filter(function(q) { return q.count > 0; }).sort(function(a, b) { return b.count - a.count; });
 
             return {

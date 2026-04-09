@@ -6,7 +6,7 @@
         var container = document.getElementById(containerId);
         if (!container) return;
         var canvas = document.createElement('canvas');
-        canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.3;';
+        canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.5;';
         container.appendChild(canvas);
         var ctx = canvas.getContext('2d');
         var particles = [];
@@ -16,11 +16,11 @@
         resize();
         window.addEventListener('resize', resize);
 
-        for (var i = 0; i < 50; i++) {
+        for (var i = 0; i < 90; i++) {
             particles.push({
                 x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-                vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
-                size: Math.random() * 2 + 0.5, color: colors[Math.floor(Math.random() * colors.length)],
+                vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
+                size: Math.random() * 3 + 0.5, color: colors[Math.floor(Math.random() * colors.length)],
                 pulse: Math.random() * Math.PI * 2
             });
         }
@@ -32,16 +32,16 @@
                 p.x += p.vx; p.y += p.vy; p.pulse += 0.02;
                 if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
                 if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
-                var glow = 0.5 + Math.sin(p.pulse) * 0.3;
+                var glow = 0.6 + Math.sin(p.pulse) * 0.4;
                 ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 ctx.fillStyle = p.color; ctx.globalAlpha = glow; ctx.fill();
                 for (var j = i + 1; j < particles.length; j++) {
                     var dx = particles[j].x - p.x, dy = particles[j].y - p.y;
                     var dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 120) {
+                    if (dist < 160) {
                         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.strokeStyle = p.color; ctx.globalAlpha = (1 - dist / 120) * 0.12;
-                        ctx.lineWidth = 0.5; ctx.stroke();
+                        ctx.strokeStyle = p.color; ctx.globalAlpha = (1 - dist / 160) * 0.2;
+                        ctx.lineWidth = 0.7; ctx.stroke();
                     }
                 }
             }
@@ -56,15 +56,16 @@
         var container = document.getElementById('data-rain');
         if (!container || container.children.length > 0) return;
         var chars = '0123456789ABCDEF';
-        for (var i = 0; i < 25; i++) {
+        for (var i = 0; i < 40; i++) {
             var col = document.createElement('div');
             col.className = 'rain-column';
             col.style.left = (Math.random() * 100) + '%';
-            col.style.animationDuration = (8 + Math.random() * 12) + 's';
-            col.style.animationDelay = (Math.random() * 10) + 's';
-            col.style.opacity = 0.03 + Math.random() * 0.06;
+            col.style.animationDuration = (6 + Math.random() * 10) + 's';
+            col.style.animationDelay = (Math.random() * 8) + 's';
+            col.style.opacity = 0.05 + Math.random() * 0.1;
+            col.style.fontSize = (9 + Math.random() * 4) + 'px';
             var text = '';
-            for (var j = 0; j < 30; j++) {
+            for (var j = 0; j < 40; j++) {
                 text += chars[Math.floor(Math.random() * chars.length)] + '\n';
             }
             col.textContent = text;
@@ -92,7 +93,7 @@
         positions.forEach(function(p) {
             var b = document.createElement('div');
             b.className = 'hcc-bracket ' + p.cls;
-            b.style.cssText = 'position:absolute;width:14px;height:14px;pointer-events:none;' + p.css;
+            b.style.cssText = 'position:absolute;width:18px;height:18px;pointer-events:none;' + p.css;
             el.appendChild(b);
         });
         el.style.position = el.style.position || 'relative';
@@ -110,8 +111,8 @@
             return x.toFixed(1) + ',' + y.toFixed(1);
         }).join(' ');
         return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="display:block;width:100%;height:' + h + 'px;">' +
-            '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="1.5" opacity="0.8"/>' +
-            '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="3" opacity="0.15" filter="blur(2px)"/>' +
+            '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="2" opacity="0.9"/>' +
+            '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="5" opacity="0.2" filter="blur(3px)"/>' +
             '</svg>';
     };
 
