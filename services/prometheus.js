@@ -110,7 +110,7 @@ class PrometheusClient {
                 r.driveHealth.forEach(function(d) {
                     if (d.metric.instance === srv.instance) {
                         driveCount++;
-                        if (parseFloat(d.value[1]) === 1) drivesHealthy++;
+                        if (parseFloat(d.value[1]) === 0) drivesHealthy++;
                     }
                 });
             }
@@ -122,7 +122,7 @@ class PrometheusClient {
                 r.psuHealth.forEach(function(d) {
                     if (d.metric.instance === srv.instance) {
                         psuCount++;
-                        if (parseFloat(d.value[1]) === 1) psuHealthy++;
+                        if (parseFloat(d.value[1]) === 0) psuHealthy++;
                     }
                 });
             }
@@ -132,8 +132,8 @@ class PrometheusClient {
                 role: srv.role,
                 instance: srv.instance,
                 model: model || srv.name,
-                status: powerOn === 1 ? 'up' : 'down',
-                health: health === 1 ? 'OK' : 'DEGRADED',
+                status: powerOn !== null ? 'up' : 'down',
+                health: health === 0 ? 'OK' : 'DEGRADED',
                 power: power ? Math.floor(power) : null,
                 powerAvg: powerAvg ? Math.floor(powerAvg) : null,
                 powerMax: powerMax ? Math.floor(powerMax) : null,
