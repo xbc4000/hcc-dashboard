@@ -579,11 +579,23 @@
     function startDashboard() {
         initClock();
         initGrid();
+        // Core effects
         if (typeof addParticleField === 'function') addParticleField('particle-bg');
         if (typeof addDataRain === 'function') addDataRain();
         if (typeof addScanLine === 'function') addScanLine();
         if (typeof HCCAudio !== 'undefined') HCCAudio.init();
         document.querySelectorAll('.hcc-panel').forEach(function(p) { if(typeof addCornerBrackets==='function') addCornerBrackets(p); });
+        // Pi-hole theme effects
+        if (typeof addNeonPulse === 'function') addNeonPulse();
+        if (typeof addCornerHUD === 'function') addCornerHUD();
+        if (typeof addDataStreams === 'function') addDataStreams();
+        if (typeof addEqualizerBars === 'function') addEqualizerBars();
+        if (typeof addGlitchOnUpdate === 'function') addGlitchOnUpdate();
+        // Delayed effects (need DOM content rendered first)
+        setTimeout(function() {
+            if (typeof addPulseRings === 'function') addPulseRings();
+            if (typeof addRotatingArcs === 'function') addRotatingArcs();
+        }, 3000);
         pollData();
         setInterval(pollData, 10000);
     }
