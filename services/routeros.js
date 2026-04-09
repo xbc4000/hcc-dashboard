@@ -1,4 +1,4 @@
-const { RouterOSClient } = require('routeros-client');
+const { RouterOSAPI } = require('node-routeros');
 
 class RouterOSService {
     constructor(host, user, password, port) {
@@ -6,37 +6,36 @@ class RouterOSService {
         this.user = user || 'mktxp_user';
         this.password = password || '';
         this.port = parseInt(port) || 8728;
-        this.client = null;
+        this.api = null;
     }
 
     async connect() {
         try {
-            this.client = new RouterOSClient({
+            this.api = new RouterOSAPI({
                 host: this.host,
                 user: this.user,
                 password: this.password,
                 port: this.port,
                 timeout: 10
             });
-            await this.client.connect();
+            await this.api.connect();
             console.log('[HCC] RouterOS connected');
             return true;
         } catch (err) {
             console.error('[HCC] RouterOS connect error:', err.message);
-            this.client = null;
+            this.api = null;
             return false;
         }
     }
 
     async getNetwatch() {
-        if (!this.client) {
+        if (!this.api) {
             var connected = await this.connect();
             if (!connected) return null;
         }
 
         try {
-            var api = this.client.getMenu('/tool/netwatch');
-            var entries = await api.getAll();
+            var entries = await this.api.write('/tool/netwatch/print');
             return entries.map(function(e) {
                 return {
                     host: e.host,
@@ -48,8 +47,7 @@ class RouterOSService {
             });
         } catch (err) {
             console.error('[HCC] RouterOS netwatch error:', err.message);
-            // Connection may have dropped — reset for reconnect on next poll
-            this.client = null;
+            this.api = null;
             return null;
         }
     }
