@@ -180,35 +180,84 @@
 
         var servers = promData.servers;
         var html = '';
-        var serverList = [
-            { key: 'per730xd', name: 'PER730XD', vlan: 'VLAN10', role: 'Workstation' },
-            { key: 'per630', name: 'PER630', vlan: 'VLAN20', role: 'Ubuntu Server' }
-        ];
 
-        serverList.forEach(function(srv) {
-            var data = servers[srv.key];
-            if (!data) return;
-            var statusCls = data.status === 'up' ? 'up' : 'down';
+        // iDRAC servers (PER730XD, PER630)
+        ['per730xd', 'per630'].forEach(function(key) {
+            var s = servers[key];
+            if (!s) return;
+            var statusCls = s.status === 'up' ? 'up' : 'down';
+            var healthColor = s.health === 'OK' ? 'var(--green)' : 'var(--red)';
 
             html += '<div class="server-block">';
             html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
             html += '  <div style="display:flex;align-items:center;gap:8px;"><div class="status-dot-sm ' + statusCls + '"></div>';
-            html += '    <span style="color:var(--text-bright);font-weight:700;letter-spacing:2px;">' + srv.name + '</span></div>';
-            html += '  <span style="color:var(--text-muted);font-size:0.65rem;letter-spacing:1px;">' + srv.vlan + ' — ' + srv.role + '</span>';
+            html += '    <span style="color:var(--text-bright);font-weight:700;letter-spacing:2px;">' + esc(s.name) + '</span></div>';
+            html += '  <span style="color:' + healthColor + ';font-size:0.7rem;letter-spacing:2px;">' + esc(s.health) + '</span>';
             html += '</div>';
 
-            html += renderBar('CPU', data.cpu, barLevel(data.cpu));
-            html += renderBar('RAM', data.ram, barLevel(data.ram));
-            html += renderBar('DISK', data.disk, barLevel(data.disk));
+            if (s.model) html += '<div class="stat-row"><span class="stat-label">Model</span><span style="color:var(--text);font-size:0.75rem;">' + esc(s.model) + '</span></div>';
 
-            if (data.load !== null) {
-                html += '<div class="stat-row"><span class="stat-label">Load</span><span style="color:var(--text-bright);font-size:0.8rem;">' + data.load.toFixed(2) + '</span></div>';
+            // Power
+            if (s.power !== null) {
+                var powerPct = s.powerCap ? (s.power / s.powerCap * 100) : 0;
+                html += '<div style="margin-bottom:6px;">';
+                html += '<div style="display:flex;justify-content:space-between;font-size:0.7rem;">';
+                html += '<span class="stat-label">POWER</span>';
+                html += '<span style="color:var(--orange);">' + s.power + 'W</span></div>';
+                if (s.powerCap) html += '<div class="progress-wrap"><div class="progress-fill ' + barLevel(powerPct) + '" style="width:' + powerPct + '%;"></div></div>';
+                html += '</div>';
             }
-            if (data.uptime !== null) {
-                html += '<div class="stat-row"><span class="stat-label">Uptime</span><span style="color:var(--green);font-size:0.8rem;">' + formatUptime(data.uptime) + '</span></div>';
+
+            // Temp
+            if (s.temp !== null) {
+                var tempLevel = s.temp < 30 ? 'low' : (s.temp < 40 ? 'mid' : 'high');
+                html += '<div class="stat-row"><span class="stat-label">Inlet Temp</span><span style="color:' + (s.temp < 35 ? 'var(--green)' : 'var(--orange)') + ';font-size:0.85rem;">' + s.temp + '°C</span></div>';
             }
+
+            // Fan
+            if (s.fanSpeed !== null) {
+                html += '<div class="stat-row"><span class="stat-label">Fan Avg</span><span style="color:var(--cyan);font-size:0.85rem;">' + fmtNum(s.fanSpeed) + ' RPM</span></div>';
+            }
+
+            // RAM
+            if (s.totalRamGB !== null) {
+                html += '<div class="stat-row"><span class="stat-label">RAM</span><span style="color:var(--cyan-bright);font-size:0.85rem;">' + s.totalRamGB + ' GB</span></div>';
+            }
+
+            // Storage
+            if (s.drives > 0) {
+                var dColor = s.drivesHealthy === s.drives ? 'var(--green)' : 'var(--red)';
+                html += '<div class="stat-row"><span class="stat-label">Drives</span><span style="color:' + dColor + ';font-size:0.85rem;">' + s.drivesHealthy + '/' + s.drives + ' Healthy</span></div>';
+            }
+
+            // PSU
+            if (s.psu > 0) {
+                var pColor = s.psuHealthy === s.psu ? 'var(--green)' : 'var(--red)';
+                html += '<div class="stat-row"><span class="stat-label">PSU</span><span style="color:' + pColor + ';font-size:0.85rem;">' + s.psuHealthy + '/' + s.psu + ' Healthy</span></div>';
+            }
+
             html += '</div>';
         });
+
+        // RPi (node_exporter)
+        var rpi = servers.rpi;
+        if (rpi && rpi.status === 'up') {
+            html += '<div class="server-block">';
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+            html += '  <div style="display:flex;align-items:center;gap:8px;"><div class="status-dot-sm up"></div>';
+            html += '    <span style="color:var(--text-bright);font-weight:700;letter-spacing:2px;">RPi 4</span></div>';
+            html += '  <span style="color:var(--text-muted);font-size:0.65rem;letter-spacing:1px;">VLAN40 — Monitoring</span>';
+            html += '</div>';
+
+            html += renderBar('CPU', rpi.cpu, barLevel(rpi.cpu));
+            html += renderBar('RAM', rpi.ram, barLevel(rpi.ram));
+            html += renderBar('DISK', rpi.disk, barLevel(rpi.disk));
+
+            if (rpi.temp !== null) html += '<div class="stat-row"><span class="stat-label">CPU Temp</span><span style="color:' + (rpi.temp < 60 ? 'var(--green)' : 'var(--orange)') + ';font-size:0.85rem;">' + rpi.temp.toFixed(1) + '°C</span></div>';
+            if (rpi.load !== null) html += '<div class="stat-row"><span class="stat-label">Load</span><span style="color:var(--text-bright);font-size:0.8rem;">' + rpi.load.toFixed(2) + '</span></div>';
+            if (rpi.uptime !== null) html += '<div class="stat-row"><span class="stat-label">Uptime</span><span style="color:var(--green);font-size:0.8rem;">' + formatUptime(rpi.uptime) + '</span></div>';
+            html += '</div>';
+        }
 
         el.innerHTML = html;
     }
