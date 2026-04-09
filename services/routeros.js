@@ -18,6 +18,10 @@ class RouterOSService {
                 port: this.port,
                 timeout: 10
             });
+            // Catch unhandled error events to prevent process crash
+            this.api.on('error', function(err) {
+                console.error('[HCC] RouterOS event error:', err.message);
+            });
             await this.api.connect();
             console.log('[HCC] RouterOS connected');
             return true;

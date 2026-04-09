@@ -3,6 +3,14 @@ const express = require('express');
 const session = require('express-session');
 const helmet = require('helmet');
 const path = require('path');
+
+// Prevent unhandled errors from crashing the process
+process.on('uncaughtException', function(err) {
+    console.error('[HCC] Uncaught exception:', err.message);
+});
+process.on('unhandledRejection', function(err) {
+    console.error('[HCC] Unhandled rejection:', err.message || err);
+});
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
 const healthRoutes = require('./routes/health');
