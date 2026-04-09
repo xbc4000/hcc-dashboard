@@ -11,12 +11,20 @@ class Poller {
             process.env.ROUTEROS_PASSWORD, process.env.ROUTEROS_PORT
         );
         this.grafanaUrl = process.env.GRAFANA_URL || 'http://127.0.0.1:3000';
+        this.idrac1Url = process.env.IDRAC1_URL || 'https://10.30.30.10';
+        this.idrac2Url = process.env.IDRAC2_URL || 'https://10.30.30.11';
+        this.portainerUrl = process.env.PORTAINER_URL || 'http://10.40.40.2:9002';
+        this.ampUrl = process.env.AMP_URL || 'http://10.20.20.3:8080';
 
         this.cache = {
             pihole: { data: null, lastPoll: null, status: 'unknown' },
             prometheus: { data: null, lastPoll: null, status: 'unknown' },
             router: { data: null, lastPoll: null, status: 'unknown' },
-            grafana: { data: null, lastPoll: null, status: 'unknown' }
+            grafana: { data: null, lastPoll: null, status: 'unknown' },
+            idrac1: { lastPoll: null, status: 'unknown' },
+            idrac2: { lastPoll: null, status: 'unknown' },
+            portainer: { lastPoll: null, status: 'unknown' },
+            amp: { lastPoll: null, status: 'unknown' }
         };
 
         // History for sparklines (last 30 data points)
@@ -42,6 +50,7 @@ class Poller {
         setTimeout(function() { self.pollPrometheus(); }, 4000);
         setTimeout(function() { self.pollRouter(); }, 6000);
         setTimeout(function() { self.pollGrafana(); }, 8000);
+        setTimeout(function() { self.pollLinks(); }, 10000);
 
         var pi = (parseInt(process.env.POLL_PIHOLE) || 15) * 1000;
         var pr = (parseInt(process.env.POLL_PROMETHEUS) || 30) * 1000;
@@ -52,6 +61,7 @@ class Poller {
         setInterval(function() { self.pollPrometheus(); }, pr);
         setInterval(function() { self.pollRouter(); }, nw);
         setInterval(function() { self.pollGrafana(); }, gr);
+        setInterval(function() { self.pollLinks(); }, 60000);
     }
 
     async pollPihole() {
@@ -104,6 +114,39 @@ class Poller {
         } catch (err) { this.cache.grafana.status = 'down'; this.cache.grafana.lastPoll = Date.now(); }
     }
 
+    checkUrl(url) {
+        return new Promise(function(resolve) {
+            if (url.startsWith('https://')) {
+                // iDRAC uses self-signed certs — use https.get directly
+                var https = require('https');
+                var req = https.get(url, { rejectUnauthorized: false, timeout: 5000 }, function(res) {
+                    res.resume();
+                    resolve(res.statusCode < 500 ? 'up' : 'down');
+                });
+                req.on('error', function() { resolve('down'); });
+                req.on('timeout', function() { req.destroy(); resolve('down'); });
+            } else {
+                fetch(url, { signal: AbortSignal.timeout(5000) }).then(function(res) {
+                    resolve(res.ok || res.status === 401 || res.status === 403 ? 'up' : 'down');
+                }).catch(function() { resolve('down'); });
+            }
+        });
+    }
+
+    async pollLinks() {
+        var checks = [
+            { key: 'idrac1', url: this.idrac1Url },
+            { key: 'idrac2', url: this.idrac2Url },
+            { key: 'portainer', url: this.portainerUrl },
+            { key: 'amp', url: this.ampUrl }
+        ];
+        var self = this;
+        await Promise.all(checks.map(async function(c) {
+            var status = await self.checkUrl(c.url);
+            self.cache[c.key] = { lastPoll: Date.now(), status: status };
+        }));
+    }
+
     getOverview() {
         var rd = this.cache.router.data || {};
         // Calculate threat level
@@ -148,11 +191,11 @@ class Poller {
             links: [
                 { name: 'Grafana', url: this.grafanaUrl, status: this.cache.grafana.status },
                 { name: 'Pi-hole', url: 'http://pi.hole/admin', status: this.cache.pihole.status },
-                { name: 'iDRAC1', url: 'https://10.30.30.10', status: 'unknown' },
-                { name: 'iDRAC2', url: 'https://10.30.30.11', status: 'unknown' },
+                { name: 'iDRAC1', url: this.idrac1Url, status: this.cache.idrac1.status },
+                { name: 'iDRAC2', url: this.idrac2Url, status: this.cache.idrac2.status },
                 { name: 'Router', url: 'http://10.10.10.1', status: this.cache.router.status },
-                { name: 'Portainer', url: 'http://10.40.40.2:9002', status: 'unknown' },
-                { name: 'AMP', url: 'http://10.20.20.3:8080', status: 'unknown' }
+                { name: 'Portainer', url: this.portainerUrl, status: this.cache.portainer.status },
+                { name: 'AMP', url: this.ampUrl, status: this.cache.amp.status }
             ]
         };
     }

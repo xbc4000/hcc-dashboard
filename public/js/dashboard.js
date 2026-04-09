@@ -100,9 +100,9 @@
             prevServices[item.key] = status;
             html += '<div class="service-row">';
             html += '<div class="service-name"><div class="status-dot-sm '+status+'"></div>';
-            html += '<div><span>'+item.name+'</span><br><span style="font-size:0.55rem;color:var(--text-muted);">'+item.sub+'</span></div></div>';
+            html += '<div><span>'+item.name+'</span><br><span style="font-size:0.75rem;color:var(--text-muted);">'+item.sub+'</span></div></div>';
             html += '<div style="text-align:right;"><div class="service-status '+status+'">'+status.toUpperCase()+'</div>';
-            html += '<div style="font-size:0.5rem;color:var(--text-muted);">'+ago+'</div></div></div>';
+            html += '<div style="font-size:0.85rem;color:var(--text-muted);">'+ago+'</div></div></div>';
         });
         el.innerHTML = html;
     }
@@ -164,11 +164,11 @@
             html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
             html += '<div style="display:flex;align-items:center;gap:8px;"><div class="status-dot-sm '+(s.status==='up'?'up':'down')+'"></div>';
             html += '<span style="color:var(--text-bright);font-weight:700;letter-spacing:2px;">'+esc(s.name)+'</span></div>';
-            html += '<span style="color:'+hColor+';font-size:0.65rem;letter-spacing:2px;">'+esc(s.health)+'</span></div>';
-            if(s.model) html += '<div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:6px;">'+esc(s.model)+'</div>';
+            html += '<span style="color:'+hColor+';font-size:0.8rem;letter-spacing:2px;">'+esc(s.health)+'</span></div>';
+            if(s.model) html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">'+esc(s.model)+'</div>';
             if(s.power!==null) {
                 var pp=s.powerCap?(s.power/s.powerCap*100):0;
-                html += '<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:0.7rem;"><span class="stat-label">POWER</span><span style="color:var(--orange);">'+s.power+'W</span></div>';
+                html += '<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:0.85rem;"><span class="stat-label">POWER</span><span style="color:var(--orange);">'+s.power+'W</span></div>';
                 if(s.powerCap) html += '<div class="progress-wrap"><div class="progress-fill '+lvl(pp)+'" style="width:'+pp+'%;"></div></div>';
                 html += '</div>';
             }
@@ -186,7 +186,7 @@
             html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
             html += '<div style="display:flex;align-items:center;gap:8px;"><div class="status-dot-sm up"></div>';
             html += '<span style="color:var(--text-bright);font-weight:700;letter-spacing:2px;">RPi 4</span></div>';
-            html += '<span style="color:var(--text-muted);font-size:0.6rem;">VLAN40</span></div>';
+            html += '<span style="color:var(--text-muted);font-size:0.75rem;">VLAN40</span></div>';
             html += bar('CPU',rpi.cpu,lvl(rpi.cpu));
             html += bar('RAM',rpi.ram,lvl(rpi.ram));
             html += bar('DISK',rpi.disk,lvl(rpi.disk));
@@ -205,7 +205,7 @@
         if (!netwatch||!Array.isArray(netwatch)) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
         if (countEl) countEl.textContent = netwatch.length;
         var up = netwatch.filter(function(e){return e.status==='up';}).length;
-        var html = '<div style="margin-bottom:6px;font-size:0.65rem;color:var(--text-muted);letter-spacing:2px;"><span style="color:var(--green);">'+up+' UP</span> / <span style="color:'+(netwatch.length-up>0?'var(--red)':'var(--text-muted)')+';">'+(netwatch.length-up)+' DOWN</span></div>';
+        var html = '<div style="margin-bottom:6px;font-size:0.8rem;color:var(--text-muted);letter-spacing:2px;"><span style="color:var(--green);">'+up+' UP</span> / <span style="color:'+(netwatch.length-up>0?'var(--red)':'var(--text-muted)')+';">'+(netwatch.length-up)+' DOWN</span></div>';
         netwatch.forEach(function(e) {
             var s = e.status||'unknown';
             html += '<div class="service-row"><div class="service-name"><div class="status-dot-sm '+s+'"></div>'+esc(e.comment||e.host)+'</div><div class="service-status '+s+'">'+s.toUpperCase()+'</div></div>';
@@ -218,10 +218,10 @@
         var el = document.getElementById('targets-body');
         if (!promData||!promData.targets) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
         var t = promData.targets;
-        var html = '<div style="margin-bottom:6px;font-size:0.65rem;color:var(--text-muted);letter-spacing:2px;"><span style="color:var(--green);">'+t.up+' UP</span> / <span style="color:'+(t.down>0?'var(--red)':'var(--text-muted)')+';">'+t.down+' DOWN</span> — '+t.total+' TOTAL</div>';
+        var html = '<div style="margin-bottom:6px;font-size:0.8rem;color:var(--text-muted);letter-spacing:2px;"><span style="color:var(--green);">'+t.up+' UP</span> / <span style="color:'+(t.down>0?'var(--red)':'var(--text-muted)')+';">'+t.down+' DOWN</span> — '+t.total+' TOTAL</div>';
         t.targets.forEach(function(tgt) {
             var s = tgt.health==='up'?'up':'down';
-            html += '<div class="service-row"><div class="service-name"><div class="status-dot-sm '+s+'"></div><div><span>'+esc(tgt.job)+'</span><br><span style="font-size:0.55rem;color:var(--text-muted);">'+esc(tgt.instance)+'</span></div></div><div class="service-status '+s+'">'+s.toUpperCase()+'</div></div>';
+            html += '<div class="service-row"><div class="service-name"><div class="status-dot-sm '+s+'"></div><div><span>'+esc(tgt.job)+'</span><br><span style="font-size:0.75rem;color:var(--text-muted);">'+esc(tgt.instance)+'</span></div></div><div class="service-status '+s+'">'+s.toUpperCase()+'</div></div>';
         });
         el.innerHTML = html;
     }
@@ -262,14 +262,14 @@
         var el = document.getElementById('dhcp-body');
         if (!dhcp||!Array.isArray(dhcp)) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
         var bound = dhcp.filter(function(l){return l.status==='bound';});
-        var html = '<div style="margin-bottom:6px;font-size:0.65rem;color:var(--text-muted);letter-spacing:2px;"><span style="color:var(--green);">'+bound.length+' ACTIVE</span> / '+dhcp.length+' TOTAL</div>';
+        var html = '<div style="margin-bottom:6px;font-size:0.8rem;color:var(--text-muted);letter-spacing:2px;"><span style="color:var(--green);">'+bound.length+' ACTIVE</span> / '+dhcp.length+' TOTAL</div>';
         dhcp.forEach(function(l) {
             var isBound = l.status === 'bound';
             var name = l.hostName || l.comment || l.macAddress || 'unknown';
             html += '<div class="service-row">';
             html += '<div class="service-name"><div class="status-dot-sm '+(isBound?'up':'unknown')+'"></div>';
-            html += '<div><span>'+esc(name)+'</span><br><span style="font-size:0.55rem;color:var(--text-muted);">'+esc(l.address)+' — '+esc(l.server)+'</span></div></div>';
-            html += '<div style="font-size:0.65rem;color:'+(isBound?'var(--green)':'var(--text-muted)')+';">'+l.status.toUpperCase()+'</div>';
+            html += '<div><span>'+esc(name)+'</span><br><span style="font-size:0.75rem;color:var(--text-muted);">'+esc(l.address)+' — '+esc(l.server)+'</span></div></div>';
+            html += '<div style="font-size:0.8rem;color:'+(isBound?'var(--green)':'var(--text-muted)')+';">'+l.status.toUpperCase()+'</div>';
             html += '</div>';
         });
         el.innerHTML = html;
@@ -285,7 +285,7 @@
             var tx = fmtBytes(iface.txBytes);
             html += '<div class="service-row">';
             html += '<div class="service-name" style="min-width:100px;"><span style="color:var(--text-bright);">'+esc(iface.name)+'</span></div>';
-            html += '<div style="display:flex;gap:12px;font-size:0.7rem;">';
+            html += '<div style="display:flex;gap:12px;font-size:0.85rem;">';
             html += '<span style="color:var(--green);">RX '+rx+'</span>';
             html += '<span style="color:var(--magenta);">TX '+tx+'</span>';
             html += '</div></div>';
@@ -303,7 +303,7 @@
             if (log.topics.indexOf('error')!==-1||log.topics.indexOf('critical')!==-1) topicColor = 'var(--red)';
             else if (log.topics.indexOf('warning')!==-1) topicColor = 'var(--orange)';
             else if (log.topics.indexOf('info')!==-1) topicColor = 'var(--cyan)';
-            html += '<div style="font-size:0.65rem;padding:2px 0;border-bottom:1px solid rgba(22,34,66,0.3);">';
+            html += '<div style="font-size:0.8rem;padding:2px 0;border-bottom:1px solid rgba(22,34,66,0.3);">';
             html += '<span style="color:var(--text-muted);">'+esc(log.time)+'</span> ';
             html += '<span style="color:'+topicColor+';">'+esc(log.topics)+'</span> ';
             html += '<span style="color:var(--text);">'+esc(log.message)+'</span>';
@@ -368,7 +368,7 @@
     function row(label,value) { return '<div class="stat-row"><span class="stat-label">'+label+'</span>'+value+'</div>'; }
     function bar(label,pct,level) {
         var v=pct!==null&&pct!==undefined?pct.toFixed(1):'---';
-        return '<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;font-size:0.7rem;"><span class="stat-label">'+label+'</span><span style="color:var(--text-bright);">'+v+'%</span></div><div class="progress-wrap"><div class="progress-fill '+level+'" style="width:'+(pct||0)+'%;"></div></div></div>';
+        return '<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;font-size:0.85rem;"><span class="stat-label">'+label+'</span><span style="color:var(--text-bright);">'+v+'%</span></div><div class="progress-wrap"><div class="progress-fill '+level+'" style="width:'+(pct||0)+'%;"></div></div></div>';
     }
     function statBox(label,value,color) {
         return '<div class="stat-box"><div class="stat-box-value '+color+'">'+value+'</div><div class="stat-box-label">'+label+'</div></div>';
