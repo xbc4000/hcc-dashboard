@@ -109,10 +109,62 @@
             var y = h - ((v - min) / range) * (h - 4) - 2;
             return x.toFixed(1) + ',' + y.toFixed(1);
         }).join(' ');
-        return '<svg width="' + w + '" height="' + h + '" style="display:block;">' +
+        return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="display:block;width:100%;height:' + h + 'px;">' +
             '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="1.5" opacity="0.8"/>' +
             '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="3" opacity="0.15" filter="blur(2px)"/>' +
             '</svg>';
+    };
+
+    // ── DONUT CHART RENDERER ──
+    window.renderDonut = function(data, size) {
+        if (!data || !data.length) return '';
+        var total = 0;
+        for (var i = 0; i < data.length; i++) total += data[i].value;
+        if (total === 0) return '';
+        var s = size || 120;
+        var cx = s / 2, cy = s / 2;
+        var r = s * 0.35;
+        var sw = s * 0.16;
+        var circ = 2 * Math.PI * r;
+        var offset = 0;
+        var svg = '<svg width="' + s + '" height="' + s + '" viewBox="0 0 ' + s + ' ' + s + '">';
+        // Background ring
+        svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(22,34,66,0.5)" stroke-width="' + sw + '"/>';
+        for (var j = 0; j < data.length; j++) {
+            var d = data[j];
+            var pct = d.value / total;
+            if (pct < 0.005) continue;
+            var dashLen = pct * circ;
+            var dashGap = circ - dashLen;
+            svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + d.color + '" stroke-width="' + sw + '"';
+            svg += ' stroke-dasharray="' + dashLen.toFixed(2) + ' ' + dashGap.toFixed(2) + '"';
+            svg += ' stroke-dashoffset="' + (-offset).toFixed(2) + '"';
+            svg += ' transform="rotate(-90 ' + cx + ' ' + cy + ')"';
+            svg += ' opacity="0.85"/>';
+            offset += dashLen;
+        }
+        // Center text
+        svg += '<text x="' + cx + '" y="' + (cy + 1) + '" text-anchor="middle" dominant-baseline="middle" fill="var(--text-muted)" font-family="var(--font-mono)" font-size="' + (s * 0.09) + '">' + total.toLocaleString() + '</text>';
+        svg += '</svg>';
+        return svg;
+    };
+
+    // ── DONUT LEGEND ──
+    window.renderDonutLegend = function(data) {
+        if (!data || !data.length) return '';
+        var total = 0;
+        for (var i = 0; i < data.length; i++) total += data[i].value;
+        var html = '';
+        for (var j = 0; j < data.length; j++) {
+            var d = data[j];
+            var pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0';
+            html += '<div class="donut-legend-item">';
+            html += '<span class="donut-legend-dot" style="background:' + d.color + ';"></span>';
+            html += '<span class="donut-legend-label">' + d.label + '</span>';
+            html += '<span class="donut-legend-pct">' + pct + '%</span>';
+            html += '</div>';
+        }
+        return html;
     };
 
     // ── AUDIO SYSTEM ──

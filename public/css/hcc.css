@@ -665,6 +665,177 @@ body.hcc-edit-mode .hcc-panel {
     text-transform: uppercase;
 }
 
+/* ── PI-HOLE PANEL ────────────────────────────────────── */
+
+.stat-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.ph-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 0 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
+}
+
+.ph-section {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+/* Breakdown bars (forwarded/cached/blocked) */
+.ph-breakdown {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+}
+
+.ph-breakdown-label {
+    width: 100px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.ph-breakdown-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(0,183,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.ph-breakdown-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.ph-breakdown-value {
+    color: var(--text-bright);
+    font-weight: 700;
+    min-width: 50px;
+    text-align: right;
+}
+
+.ph-breakdown-pct {
+    font-weight: 700;
+    min-width: 50px;
+    text-align: right;
+    font-size: 0.75rem;
+}
+
+/* Donut charts */
+.ph-donuts {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.ph-donut-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.ph-donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.ph-donut-legend {
+    flex: 1;
+    min-width: 0;
+}
+
+.donut-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 1px 0;
+    font-size: 0.7rem;
+}
+
+.donut-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.donut-legend-label {
+    color: var(--text);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.donut-legend-pct {
+    color: var(--text-muted);
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* Top domains list */
+.ph-domain-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    margin-bottom: 2px;
+    overflow: hidden;
+}
+
+.ph-domain-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(255,34,68,0.12);
+    border-right: 2px solid rgba(255,34,68,0.4);
+    transition: width 0.5s ease;
+    z-index: 0;
+}
+
+.ph-domain-bar.allowed {
+    background: rgba(0,183,255,0.1);
+    border-right: 2px solid rgba(0,183,255,0.3);
+}
+
+.ph-domain-name {
+    position: relative;
+    z-index: 1;
+    color: var(--red);
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70%;
+}
+
+.ph-domain-count {
+    position: relative;
+    z-index: 1;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
 /* ── SERVER BLOCKS ─────────────────────────────────────── */
 
 .server-block {

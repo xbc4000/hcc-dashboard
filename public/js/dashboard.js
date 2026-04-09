@@ -124,31 +124,147 @@
     }
 
     // ── PI-HOLE ──
+    var DONUT_COLORS = ['#00B7FF','#FF00B2','#00ff88','#ff6600','#B986F2','#FFD700','#ff2244','#00d4ff'];
+
     function renderPihole(pihole, history) {
         var el = document.getElementById('pihole-body');
         if (!pihole) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
-        var html = '<div class="stat-grid">';
+        var html = '';
+
+        // ── Status bar
+        var statusColor = pihole.status==='enabled'?'var(--green)':'var(--red)';
+        html += '<div class="ph-status-bar"><span style="color:'+statusColor+';">'+pihole.status.toUpperCase()+'</span>';
+        html += '<span style="color:var(--text-muted);">'+pihole.clients+' ACTIVE CLIENTS</span>';
+        if (pihole.uniqueDomains) html += '<span style="color:var(--text-muted);">'+fmtNum(pihole.uniqueDomains)+' DOMAINS</span>';
+        html += '</div>';
+
+        // ── Stat boxes
+        html += '<div class="stat-grid stat-grid-4">';
         html += statBox('QUERIES',fmtNum(pihole.totalQueries),'cyan');
         html += statBox('BLOCKED',fmtNum(pihole.blockedQueries),'red');
         html += statBox('BLOCK %',(pihole.percentBlocked||0).toFixed(1)+'%','orange');
-        html += statBox('GRAVITY',fmtNum(pihole.gravitySize),'green');
+        html += statBox('GRAVITY',fmtCompact(pihole.gravitySize),'green');
         html += '</div>';
-        if (pihole.clients) html += row('Active Clients','<span class="stat-value">'+pihole.clients+'</span>');
-        if (pihole.status) html += row('Status','<span style="color:'+( pihole.status==='enabled'?'var(--green)':'var(--red)')+';">'+pihole.status.toUpperCase()+'</span>');
-        // Sparklines
+
+        // ── Query breakdown bars (forwarded / cached / blocked)
+        var fwd = pihole.forwarded || 0;
+        var cached = pihole.cached || 0;
+        var blocked = pihole.blockedQueries || 0;
+        var total = pihole.totalQueries || 1;
+        html += '<div class="ph-section">';
+        html += '<div class="stat-label" style="margin-bottom:6px;">QUERY BREAKDOWN</div>';
+        html += breakdownBar('FORWARDED', fwd, total, 'var(--cyan)');
+        html += breakdownBar('CACHED', cached, total, 'var(--green)');
+        html += breakdownBar('BLOCKED', blocked, total, 'var(--red)');
+        html += '</div>';
+
+        // ── Donut charts row
+        var hasQueryTypes = pihole.queryTypes && pihole.queryTypes.length > 0;
+        var hasUpstreams = pihole.upstreams && pihole.upstreams.length > 0;
+        if (hasQueryTypes || hasUpstreams) {
+            html += '<div class="ph-donuts">';
+            if (hasQueryTypes) {
+                var qtData = pihole.queryTypes.slice(0, 8).map(function(q, i) {
+                    return { label: q.type, value: q.count, color: DONUT_COLORS[i % DONUT_COLORS.length] };
+                });
+                html += '<div class="ph-donut-col">';
+                html += '<div class="stat-label">QUERY TYPES</div>';
+                html += '<div class="ph-donut-wrap">';
+                html += (typeof renderDonut==='function'?renderDonut(qtData, 130):'');
+                html += '<div class="ph-donut-legend">'+(typeof renderDonutLegend==='function'?renderDonutLegend(qtData):'')+'</div>';
+                html += '</div></div>';
+            }
+            if (hasUpstreams) {
+                var usData = pihole.upstreams.slice(0, 6).map(function(u, i) {
+                    return { label: u.name, value: u.pct, color: DONUT_COLORS[(i+3) % DONUT_COLORS.length] };
+                });
+                html += '<div class="ph-donut-col">';
+                html += '<div class="stat-label">UPSTREAM SERVERS</div>';
+                html += '<div class="ph-donut-wrap">';
+                html += (typeof renderDonut==='function'?renderDonut(usData, 130):'');
+                html += '<div class="ph-donut-legend">'+(typeof renderDonutLegend==='function'?renderDonutLegend(usData):'')+'</div>';
+                html += '</div></div>';
+            }
+            html += '</div>';
+        }
+
+        // ── Top blocked domains
+        if (pihole.topBlocked && pihole.topBlocked.length > 0) {
+            html += '<div class="ph-section">';
+            html += '<div class="stat-label" style="margin-bottom:6px;">TOP BLOCKED</div>';
+            pihole.topBlocked.forEach(function(d) {
+                var maxCount = pihole.topBlocked[0].count || 1;
+                var pct = (d.count / maxCount * 100);
+                html += '<div class="ph-domain-row">';
+                html += '<div class="ph-domain-bar" style="width:'+pct+'%;"></div>';
+                html += '<span class="ph-domain-name">'+esc(d.domain)+'</span>';
+                html += '<span class="ph-domain-count">'+fmtNum(d.count)+'</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // ── Top queries
+        if (pihole.topQueries && pihole.topQueries.length > 0) {
+            html += '<div class="ph-section">';
+            html += '<div class="stat-label" style="margin-bottom:6px;">TOP QUERIES</div>';
+            pihole.topQueries.forEach(function(d) {
+                var maxCount = pihole.topQueries[0].count || 1;
+                var pct = (d.count / maxCount * 100);
+                html += '<div class="ph-domain-row">';
+                html += '<div class="ph-domain-bar allowed" style="width:'+pct+'%;"></div>';
+                html += '<span class="ph-domain-name" style="color:var(--cyan);">'+esc(d.domain)+'</span>';
+                html += '<span class="ph-domain-count">'+fmtNum(d.count)+'</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // ── Top clients
+        if (pihole.topSources && pihole.topSources.length > 0) {
+            html += '<div class="ph-section">';
+            html += '<div class="stat-label" style="margin-bottom:6px;">TOP CLIENTS</div>';
+            pihole.topSources.forEach(function(c) {
+                html += '<div class="service-row">';
+                html += '<span style="color:var(--text-bright);">'+esc(c.client)+'</span>';
+                html += '<span style="color:var(--purple);font-weight:700;">'+fmtNum(c.count)+'</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // ── Sparklines
         if (history && history.queries && history.queries.length > 2) {
-            html += '<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">';
+            html += '<div class="ph-section">';
             html += '<div class="stat-label" style="margin-bottom:4px;">QUERY TREND</div>';
-            html += renderSparkline(history.queries, '#00B7FF', 280, 35);
+            html += renderSparkline(history.queries, '#00B7FF', 400, 40);
             html += '</div>';
         }
         if (history && history.blocked && history.blocked.length > 2) {
             html += '<div style="margin-top:6px;">';
             html += '<div class="stat-label" style="margin-bottom:4px;">BLOCKED TREND</div>';
-            html += renderSparkline(history.blocked, '#ff2244', 280, 35);
+            html += renderSparkline(history.blocked, '#ff2244', 400, 40);
             html += '</div>';
         }
+
         el.innerHTML = html;
+    }
+
+    function breakdownBar(label, value, total, color) {
+        var pct = total > 0 ? (value / total * 100) : 0;
+        return '<div class="ph-breakdown">' +
+            '<span class="ph-breakdown-label">' + label + '</span>' +
+            '<div class="ph-breakdown-track"><div class="ph-breakdown-fill" style="width:' + pct.toFixed(1) + '%;background:' + color + ';box-shadow:0 0 8px ' + color + ';"></div></div>' +
+            '<span class="ph-breakdown-value">' + fmtNum(value) + '</span>' +
+            '<span class="ph-breakdown-pct" style="color:' + color + ';">' + pct.toFixed(1) + '%</span>' +
+            '</div>';
+    }
+
+    function fmtCompact(n) {
+        if (!n) return '0';
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n.toLocaleString();
     }
 
     // ── SERVER HEALTH ──
