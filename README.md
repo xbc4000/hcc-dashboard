@@ -4,19 +4,19 @@ Node.js + Express backend, vanilla HTML/CSS/JS frontend. Docker/Portainer ready.
 
 5 panels: System Overview, Pi-hole DNS, Server Health, Netwatch, Quick Links.
 
-## Quick Deploy (PER630)
+## Quick Deploy (RPi)
 
 ```bash
 # 1. Clone
-git clone git@github.com:xbc4000/hcc-dashboard.git
+git clone https://github.com/xbc4000/hcc-dashboard.git
 cd hcc-dashboard
 
 # 2. Create .env
 cp .env.example .env
 
 # 3. Generate password hash
-docker run --rm node:20-alpine node -e "require('bcrypt').hash('YOUR_PASSWORD_HERE', 12).then(console.log)"
-# Copy the output into .env as HCC_PASSWORD_HASH
+docker run --rm node:20-alpine sh -c "cd /tmp && npm init -y && npm install bcryptjs && node -e \"var b=require('bcryptjs');b.hash('YOUR_PASSWORD',12).then(function(h){console.log(h)})\""
+# Escape every $ as $$ in the hash, then paste into .env as HCC_PASSWORD_HASH
 
 # 4. Edit .env — fill in all values
 nano .env
@@ -25,41 +25,33 @@ nano .env
 docker compose up --build -d
 
 # 6. Open browser
-# http://10.20.20.2:3080
+# http://10.40.40.2:3080
 ```
 
-## RouterOS Firewall Rules (Required)
+Or deploy via Portainer: create a new stack, paste `docker-compose.yml`, add env vars.
 
-Run these on the router before deploying:
+## No Extra Firewall Rules Needed
 
-```routeros
-# Allow Server2 to use RouterOS API
-/ip service set api address=10.10.10.0/24,10.20.20.0/24,10.30.30.0/24,10.40.40.0/24,10.60.60.0/24
-
-# Forward: Server2 → RPi (Prometheus/Grafana)
-/ip firewall filter add chain=forward comment="[FWD] Server2 to RPi services" dst-address=10.40.40.2 dst-port=3000,9090 protocol=tcp src-address=10.20.20.0/24
-
-# Forward: Server2 → Pi-hole API
-/ip firewall filter add chain=forward comment="[FWD] Server2 HCC to Pi-hole API" dst-address=172.17.0.2 dst-port=80 protocol=tcp src-address=10.20.20.2
-
-# Input: Server2 → RouterOS API
-/ip firewall filter add chain=input comment="[IN] Server2 HCC RouterOS API" dst-port=8728 protocol=tcp src-address=10.20.20.2
-```
+RPi (VLAN40) already has forward rules to reach all services:
+- Pi-hole (172.17.0.2) — rules 27-28
+- RouterOS API (10.10.10.1:8728) — rule 15
+- Prometheus/Grafana — localhost (same host)
+- Server metrics — via Prometheus (same host)
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `SESSION_SECRET` | Random string for cookie signing |
-| `HCC_PASSWORD_HASH` | bcrypt hash of your login password |
+| `HCC_PASSWORD_HASH` | bcrypt hash of login password (escape `$` as `$$`) |
 | `PIHOLE_URL` | Pi-hole base URL (default: `http://172.17.0.2`) |
 | `PIHOLE_PASSWORD` | Pi-hole admin password |
-| `PROMETHEUS_URL` | Prometheus URL (default: `http://10.40.40.2:9090`) |
+| `PROMETHEUS_URL` | Prometheus URL (`http://127.0.0.1:9090` on RPi) |
 | `ROUTEROS_HOST` | Router IP (default: `10.10.10.1`) |
 | `ROUTEROS_PORT` | RouterOS API port (default: `8728`) |
 | `ROUTEROS_USER` | RouterOS API user (default: `mktxp_user`) |
 | `ROUTEROS_PASSWORD` | RouterOS API password |
-| `GRAFANA_URL` | Grafana URL (default: `http://10.40.40.2:3000`) |
+| `GRAFANA_URL` | Grafana URL (`http://127.0.0.1:3000` on RPi) |
 | `SERVER1_INSTANCE` | Prometheus instance label for PER730XD |
 | `SERVER2_INSTANCE` | Prometheus instance label for PER630 |
 
@@ -81,4 +73,4 @@ docker compose down
 
 ## Portainer
 
-Paste `docker-compose.yml` into Portainer's stack editor. Add the `.env` variables via Portainer's environment section.
+Create a new stack in Portainer, paste `docker-compose.yml`, add the env vars from `.env.example`.
