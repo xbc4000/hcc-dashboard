@@ -59,43 +59,50 @@ class PiholeClient {
             var totalQueries = results[0];
             if (totalQueries === null) return null;
 
-            // Helper: extract the first meaningful label value from a Prometheus metric
+            // Helper: extract a label value by trying preferred names, then fallback
             var SKIP_LABELS = { __name__: 1, job: 1, instance: 1 };
-            function extractLabel(metric) {
+            function extractLabel(metric, preferred) {
+                // Try preferred label names first
+                if (preferred) {
+                    for (var i = 0; i < preferred.length; i++) {
+                        if (metric[preferred[i]]) return metric[preferred[i]];
+                    }
+                }
+                // Fallback: first non-system label
                 for (var key in metric) {
                     if (!SKIP_LABELS[key]) return metric[key];
                 }
                 return 'unknown';
             }
 
-            // Parse query types
+            // Parse query types — prefer "type" or "name" label
             var queryTypes = results[10].map(function(r) {
-                return { type: extractLabel(r.metric), count: parseFloat(r.value[1]) };
+                return { type: extractLabel(r.metric, ['type', 'name', 'query_type']), count: parseFloat(r.value[1]) };
             }).filter(function(q) { return q.count > 0; }).sort(function(a, b) { return b.count - a.count; });
 
-            // Parse forward destinations
+            // Parse forward destinations — prefer "destination" or "dst"
             var upstreams = results[11].map(function(r) {
-                return { name: extractLabel(r.metric), pct: parseFloat(r.value[1]) };
+                return { name: extractLabel(r.metric, ['destination', 'dst', 'upstream']), pct: parseFloat(r.value[1]) };
             }).sort(function(a, b) { return b.pct - a.pct; });
 
-            // Parse top blocked
+            // Parse top blocked — prefer "domain"
             var topBlocked = results[12].map(function(r) {
-                return { domain: extractLabel(r.metric), count: Math.floor(parseFloat(r.value[1])) };
+                return { domain: extractLabel(r.metric, ['domain', 'name']), count: Math.floor(parseFloat(r.value[1])) };
             }).slice(0, 8);
 
-            // Parse top queries
+            // Parse top queries — prefer "domain"
             var topQueries = results[13].map(function(r) {
-                return { domain: extractLabel(r.metric), count: Math.floor(parseFloat(r.value[1])) };
+                return { domain: extractLabel(r.metric, ['domain', 'name']), count: Math.floor(parseFloat(r.value[1])) };
             }).slice(0, 5);
 
-            // Parse top sources
+            // Parse top sources — prefer "client" or "source"
             var topSources = results[14].map(function(r) {
-                return { client: extractLabel(r.metric), count: Math.floor(parseFloat(r.value[1])) };
+                return { client: extractLabel(r.metric, ['client', 'source', 'hostname']), count: Math.floor(parseFloat(r.value[1])) };
             }).slice(0, 5);
 
-            // Parse reply types
+            // Parse reply types — prefer "type" or "reply_type"
             var replyTypes = results[15].map(function(r) {
-                return { type: extractLabel(r.metric), count: parseFloat(r.value[1]) };
+                return { type: extractLabel(r.metric, ['type', 'reply_type', 'name']), count: parseFloat(r.value[1]) };
             }).filter(function(q) { return q.count > 0; }).sort(function(a, b) { return b.count - a.count; });
 
             return {

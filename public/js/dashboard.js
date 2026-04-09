@@ -57,6 +57,11 @@
             updateTicker(d.pihole);
             doAudio(d.pihole, d.services);
             flashPanels();
+            // Re-apply effects that get destroyed by innerHTML re-renders
+            setTimeout(function() {
+                if (typeof window._hccApplyArcs === 'function') window._hccApplyArcs();
+                if (typeof window._hccApplyRings === 'function') window._hccApplyRings();
+            }, 100);
             if (dot) setTimeout(function() { dot.style.boxShadow = '0 0 10px var(--cyan)'; }, 300);
         }).catch(function(err) { console.error('[HCC] Poll error:', err); });
     }
@@ -368,8 +373,14 @@
         if (fw.topDrops && fw.topDrops.length > 0) {
             html += '<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">';
             html += '<div class="stat-label" style="margin-bottom:6px;">TOP DROP RULES</div>';
+            var maxPkts = fw.topDrops[0].packets || 1;
             fw.topDrops.slice(0,5).forEach(function(d) {
-                html += '<div class="domain-row"><span class="domain-name" style="color:var(--red);max-width:60%;">'+esc(d.comment)+'</span><span class="domain-count">'+fmtNum(d.packets)+' pkts</span></div>';
+                var pct = (d.packets / maxPkts * 100);
+                html += '<div class="ph-domain-row">';
+                html += '<div class="ph-domain-bar" style="width:'+pct+'%;"></div>';
+                html += '<span class="ph-domain-name" style="color:var(--red);">'+esc(d.comment)+'</span>';
+                html += '<span class="ph-domain-count">'+fmtNum(d.packets)+' pkts</span>';
+                html += '</div>';
             });
             html += '</div>';
         }

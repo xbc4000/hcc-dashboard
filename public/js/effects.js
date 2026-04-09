@@ -219,7 +219,7 @@
             });
         }
         applyRings();
-        setInterval(applyRings, 5000);
+        window._hccApplyRings = applyRings;
     };
 
     // ── ROTATING ARCS ON DONUT CHARTS ──
@@ -251,7 +251,8 @@
             });
         }
         applyArcs();
-        setInterval(applyArcs, 5000);
+        // Expose for re-apply after poll re-renders donut SVGs
+        window._hccApplyArcs = applyArcs;
     };
 
     // ── BINARY DATA STREAMS ON SCREEN EDGES ──
