@@ -297,7 +297,7 @@
     function renderLogs(logs) {
         var el = document.getElementById('logs-body');
         if (!logs||!Array.isArray(logs)) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
-        var html = '<div style="max-height:250px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(0,183,255,0.3) transparent;">';
+        var html = '<div>';
         logs.forEach(function(log) {
             var topicColor = 'var(--text-muted)';
             if (log.topics.indexOf('error')!==-1||log.topics.indexOf('critical')!==-1) topicColor = 'var(--red)';
@@ -382,8 +382,83 @@
         return (bytes/Math.pow(1024,i)).toFixed(1)+' '+units[i];
     }
 
+    // ── GRIDSTACK LAYOUT ──
+    var hccGrid = null;
+    var editMode = false;
+    var LAYOUT_KEY = 'hcc-layout';
+
+    function initGrid() {
+        if (typeof GridStack === 'undefined') return;
+
+        // Load saved layout and apply positions before init
+        var saved = null;
+        try { saved = JSON.parse(localStorage.getItem(LAYOUT_KEY)); } catch(e) {}
+        if (saved && Array.isArray(saved)) {
+            saved.forEach(function(item) {
+                var el = document.querySelector('[gs-id="' + item.id + '"]');
+                if (el) {
+                    if (item.x !== undefined) el.setAttribute('gs-x', item.x);
+                    if (item.y !== undefined) el.setAttribute('gs-y', item.y);
+                    if (item.w !== undefined) el.setAttribute('gs-w', item.w);
+                    if (item.h !== undefined) el.setAttribute('gs-h', item.h);
+                }
+            });
+        }
+
+        hccGrid = GridStack.init({
+            column: 12,
+            cellHeight: 80,
+            margin: 6,
+            animate: true,
+            float: false,
+            handle: '.hcc-panel-header',
+            disableResize: true,
+            disableDrag: true
+        });
+
+        // Save layout on any change
+        hccGrid.on('change', function() { saveLayout(); });
+
+        // Edit mode toggle
+        var editBtn = document.getElementById('hcc-edit-btn');
+        var resetBtn = document.getElementById('hcc-reset-btn');
+        if (editBtn) {
+            editBtn.addEventListener('click', function() {
+                editMode = !editMode;
+                hccGrid.enableMove(editMode);
+                hccGrid.enableResize(editMode);
+                editBtn.textContent = editMode ? 'LOCK' : 'EDIT';
+                editBtn.classList.toggle('active', editMode);
+                resetBtn.style.display = editMode ? '' : 'none';
+                document.body.classList.toggle('hcc-edit-mode', editMode);
+            });
+        }
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                localStorage.removeItem(LAYOUT_KEY);
+                window.location.reload();
+            });
+        }
+    }
+
+    function saveLayout() {
+        if (!hccGrid) return;
+        var items = hccGrid.getGridItems();
+        var layout = items.map(function(el) {
+            return {
+                id: el.getAttribute('gs-id'),
+                x: parseInt(el.getAttribute('gs-x')),
+                y: parseInt(el.getAttribute('gs-y')),
+                w: parseInt(el.getAttribute('gs-w')),
+                h: parseInt(el.getAttribute('gs-h'))
+            };
+        });
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+    }
+
     function startDashboard() {
         initClock();
+        initGrid();
         if (typeof addParticleField === 'function') addParticleField('particle-bg');
         if (typeof addDataRain === 'function') addDataRain();
         if (typeof addScanLine === 'function') addScanLine();

@@ -346,13 +346,70 @@ body {
 
 /* ── DASHBOARD GRID ────────────────────────────────────── */
 
-#hcc-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-    gap: 12px;
-    padding: 62px 12px 12px;
-    max-width: 1600px;
-    margin: 0 auto;
+#hcc-main {
+    padding: 58px 8px 40px;
+}
+
+/* Gridstack panels fill their cells */
+.grid-stack-item-content {
+    height: 100% !important;
+    overflow: hidden;
+}
+
+.grid-stack-item-content .hcc-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-stack-item-content .hcc-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,183,255,0.3) transparent;
+}
+
+/* ── GRIDSTACK THEME OVERRIDES ────────────────────────── */
+
+/* Placeholder shown during drag */
+.grid-stack .grid-stack-placeholder > .placeholder-content {
+    background: rgba(0,183,255,0.06) !important;
+    border: 1px dashed var(--cyan) !important;
+    border-radius: 0 !important;
+}
+
+/* Resize handle — bottom-right corner */
+.grid-stack > .grid-stack-item > .ui-resizable-se {
+    width: 20px !important;
+    height: 20px !important;
+    border-right: 3px solid var(--magenta) !important;
+    border-bottom: 3px solid var(--magenta) !important;
+    right: 2px !important;
+    bottom: 2px !important;
+    background: none !important;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+/* Only show resize handles in edit mode */
+body.hcc-edit-mode .grid-stack > .grid-stack-item > .ui-resizable-se {
+    opacity: 0.6;
+}
+body.hcc-edit-mode .grid-stack > .grid-stack-item > .ui-resizable-se:hover {
+    opacity: 1;
+}
+
+/* Drag handle cursor on panel headers in edit mode */
+body.hcc-edit-mode .hcc-panel-header {
+    cursor: grab;
+}
+body.hcc-edit-mode .hcc-panel-header:active {
+    cursor: grabbing;
+}
+
+/* Subtle edit mode indicator on panels */
+body.hcc-edit-mode .hcc-panel {
+    box-shadow: inset 0 0 0 1px rgba(0,183,255,0.12);
 }
 
 /* ── PANELS ────────────────────────────────────────────── */
@@ -638,10 +695,43 @@ body {
     50% { opacity: 1; }
 }
 
-/* ── SPAN FULL WIDTH ───────────────────────────────────── */
+/* ── HEADER BUTTONS (Edit/Reset) ───────────────────────── */
 
-.span-full {
-    grid-column: 1 / -1;
+.hcc-header-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.hcc-header-btn:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 10px rgba(0,183,255,0.2);
+}
+
+.hcc-header-btn.active {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: rgba(0,183,255,0.1);
+    box-shadow: 0 0 10px rgba(0,183,255,0.2);
+}
+
+.hcc-header-btn.reset {
+    border-color: var(--orange);
+    color: var(--orange);
+}
+
+.hcc-header-btn.reset:hover {
+    border-color: var(--orange);
+    color: var(--orange);
+    box-shadow: 0 0 10px rgba(255,102,0,0.3);
 }
 
 /* ── DATA RAIN ──────────────────────────────────────────── */

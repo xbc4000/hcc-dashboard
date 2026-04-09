@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HCC // DASHBOARD</title>
+    <link rel="stylesheet" href="/vendor/gridstack/gridstack.min.css">
     <link rel="stylesheet" href="/css/hcc.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
@@ -32,6 +33,9 @@
         <div class="header-right">
             <span id="hcc-threat" style="font-size:0.7rem;font-weight:700;letter-spacing:2px;padding:2px 8px;border:1px solid;">LOW</span>
             <div class="header-divider"></div>
+            <button id="hcc-edit-btn" class="hcc-header-btn">EDIT</button>
+            <button id="hcc-reset-btn" class="hcc-header-btn reset" style="display:none;">RESET</button>
+            <div class="header-divider"></div>
             <span style="color:var(--orange);letter-spacing:3px;font-weight:700;font-size:0.7rem;">SESSION</span>
             <span id="hcc-session" style="color:var(--orange);font-weight:800;letter-spacing:3px;">00:00</span>
             <div class="header-divider"></div>
@@ -40,61 +44,107 @@
     </header>
 
     <!-- Dashboard Grid -->
-    <main id="hcc-grid">
-        <section class="hcc-panel" id="panel-overview">
-            <div class="hcc-panel-header"><div class="dot"></div>SYSTEM OVERVIEW</div>
-            <div class="hcc-panel-body" id="overview-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+    <main id="hcc-main">
+        <div class="grid-stack" id="hcc-grid">
+            <div class="grid-stack-item" gs-id="overview" gs-w="4" gs-h="3" gs-min-w="2" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-overview">
+                        <div class="hcc-panel-header"><div class="dot"></div>SYSTEM OVERVIEW</div>
+                        <div class="hcc-panel-body" id="overview-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-router">
-            <div class="hcc-panel-header"><div class="dot"></div>ROUTER — RB3011</div>
-            <div class="hcc-panel-body" id="router-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="router" gs-w="4" gs-h="3" gs-min-w="2" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-router">
+                        <div class="hcc-panel-header"><div class="dot"></div>ROUTER — RB3011</div>
+                        <div class="hcc-panel-body" id="router-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-pihole">
-            <div class="hcc-panel-header"><div class="dot"></div>PI-HOLE DNS</div>
-            <div class="hcc-panel-body" id="pihole-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="pihole" gs-w="4" gs-h="4" gs-min-w="2" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-pihole">
+                        <div class="hcc-panel-header"><div class="dot"></div>PI-HOLE DNS</div>
+                        <div class="hcc-panel-body" id="pihole-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-servers">
-            <div class="hcc-panel-header"><div class="dot"></div>SERVER HEALTH</div>
-            <div class="hcc-panel-body" id="servers-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="servers" gs-w="4" gs-h="5" gs-min-w="2" gs-min-h="3">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-servers">
+                        <div class="hcc-panel-header"><div class="dot"></div>SERVER HEALTH</div>
+                        <div class="hcc-panel-body" id="servers-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-netwatch">
-            <div class="hcc-panel-header"><div class="dot"></div>NETWATCH — <span id="netwatch-count">0</span> HOSTS</div>
-            <div class="hcc-panel-body" id="netwatch-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="netwatch" gs-w="4" gs-h="3" gs-min-w="2" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-netwatch">
+                        <div class="hcc-panel-header"><div class="dot"></div>NETWATCH — <span id="netwatch-count">0</span> HOSTS</div>
+                        <div class="hcc-panel-body" id="netwatch-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-targets">
-            <div class="hcc-panel-header"><div class="dot"></div>PROMETHEUS TARGETS</div>
-            <div class="hcc-panel-body" id="targets-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="targets" gs-w="4" gs-h="3" gs-min-w="2" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-targets">
+                        <div class="hcc-panel-header"><div class="dot"></div>PROMETHEUS TARGETS</div>
+                        <div class="hcc-panel-body" id="targets-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-firewall">
-            <div class="hcc-panel-header"><div class="dot" style="background:var(--red);box-shadow:0 0 6px var(--red);"></div>FIREWALL</div>
-            <div class="hcc-panel-body" id="firewall-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="firewall" gs-w="4" gs-h="4" gs-min-w="2" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-firewall">
+                        <div class="hcc-panel-header"><div class="dot" style="background:var(--red);box-shadow:0 0 6px var(--red);"></div>FIREWALL</div>
+                        <div class="hcc-panel-body" id="firewall-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-dhcp">
-            <div class="hcc-panel-header"><div class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple);"></div>DHCP LEASES</div>
-            <div class="hcc-panel-body" id="dhcp-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="dhcp" gs-w="4" gs-h="3" gs-min-w="2" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-dhcp">
+                        <div class="hcc-panel-header"><div class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple);"></div>DHCP LEASES</div>
+                        <div class="hcc-panel-body" id="dhcp-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-bandwidth">
-            <div class="hcc-panel-header"><div class="dot" style="background:var(--green);box-shadow:0 0 6px var(--green);"></div>NETWORK BANDWIDTH</div>
-            <div class="hcc-panel-body" id="bandwidth-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="bandwidth" gs-w="4" gs-h="3" gs-min-w="2" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-bandwidth">
+                        <div class="hcc-panel-header"><div class="dot" style="background:var(--green);box-shadow:0 0 6px var(--green);"></div>NETWORK BANDWIDTH</div>
+                        <div class="hcc-panel-body" id="bandwidth-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel" id="panel-logs">
-            <div class="hcc-panel-header"><div class="dot" style="background:var(--orange);box-shadow:0 0 6px var(--orange);"></div>ROUTER LOG</div>
-            <div class="hcc-panel-body" id="logs-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="logs" gs-w="6" gs-h="3" gs-min-w="3" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-logs">
+                        <div class="hcc-panel-header"><div class="dot" style="background:var(--orange);box-shadow:0 0 6px var(--orange);"></div>ROUTER LOG</div>
+                        <div class="hcc-panel-body" id="logs-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
 
-        <section class="hcc-panel span-full" id="panel-links">
-            <div class="hcc-panel-header"><div class="dot"></div>QUICK LINKS</div>
-            <div class="hcc-panel-body" id="links-body"><div class="panel-loading">CONNECTING...</div></div>
-        </section>
+            <div class="grid-stack-item" gs-id="links" gs-w="6" gs-h="2" gs-min-w="3" gs-min-h="2">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-links">
+                        <div class="hcc-panel-header"><div class="dot"></div>QUICK LINKS</div>
+                        <div class="hcc-panel-body" id="links-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Blocked Domain Ticker -->
@@ -103,6 +153,7 @@
         <div id="ticker-track"><div id="ticker-content">Loading blocked domains...</div></div>
     </div>
 
+    <script src="/vendor/gridstack/gridstack-all.js"></script>
     <script src="/js/effects.js"></script>
     <script src="/js/dashboard.js"></script>
 </body>

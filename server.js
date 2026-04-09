@@ -58,6 +58,9 @@ app.get('/', function(req, res) {
     }
 });
 
+// Vendor files (gridstack from node_modules)
+app.use('/vendor/gridstack', express.static(path.join(__dirname, 'node_modules/gridstack/dist')));
+
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
