@@ -11,18 +11,9 @@ const { Poller } = require('./services/poller');
 const app = express();
 const PORT = process.env.PORT || 3080;
 
-// Security headers (relaxed CSP for inline styles/scripts in our theme)
+// Security headers — CSP disabled (internal network only)
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:"],
-            connectSrc: ["'self'"]
-        }
-    }
+    contentSecurityPolicy: false
 }));
 
 app.use(express.json());
