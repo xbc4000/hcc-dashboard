@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HCC // AUTHENTICATE</title>
+    <link rel="stylesheet" href="/css/hcc.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="login-page">
+    <!-- Boot sequence overlay -->
+    <div id="boot-overlay">
+        <div id="boot-scanline"></div>
+        <div id="boot-vignette"></div>
+        <div id="boot-corners">
+            <div class="corner tl"></div>
+            <div class="corner tr"></div>
+            <div class="corner bl"></div>
+            <div class="corner br"></div>
+        </div>
+        <div id="boot-terminal"></div>
+        <div id="boot-progress-wrap">
+            <div id="boot-progress-bar"></div>
+        </div>
+        <div id="boot-percent">0%</div>
+    </div>
+
+    <!-- Login form (hidden during boot) -->
+    <div id="login-container" style="display:none;">
+        <div class="login-card">
+            <div class="login-header">AUTHENTICATE</div>
+            <div class="login-subtitle">HOMELAB COMMAND CENTER v1.0</div>
+            <form id="login-form">
+                <input type="password" id="login-password" placeholder="ENTER ACCESS CODE" autocomplete="current-password" autofocus>
+                <button type="submit" id="login-btn">ACCESS</button>
+            </form>
+            <div id="login-error"></div>
+        </div>
+    </div>
+
+    <div id="particle-bg"></div>
+    <script src="/js/effects.js"></script>
+    <script src="/js/login.js"></script>
+</body>
+</html>

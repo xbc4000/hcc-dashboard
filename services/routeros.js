@@ -1,0 +1,62 @@
+const { RouterOSClient } = require('routeros-client');
+
+class RouterOSService {
+    constructor(host, user, password, port) {
+        this.host = host || '10.10.10.1';
+        this.user = user || 'mktxp_user';
+        this.password = password || '';
+        this.port = parseInt(port) || 8728;
+        this.client = null;
+    }
+
+    async connect() {
+        try {
+            this.client = new RouterOSClient({
+                host: this.host,
+                user: this.user,
+                password: this.password,
+                port: this.port,
+                timeout: 10
+            });
+            await this.client.connect();
+            console.log('[HCC] RouterOS connected');
+            return true;
+        } catch (err) {
+            console.error('[HCC] RouterOS connect error:', err.message);
+            this.client = null;
+            return false;
+        }
+    }
+
+    async getNetwatch() {
+        if (!this.client) {
+            var connected = await this.connect();
+            if (!connected) return null;
+        }
+
+        try {
+            var api = this.client.getMenu('/tool/netwatch');
+            var entries = await api.getAll();
+            return entries.map(function(e) {
+                return {
+                    host: e.host,
+                    comment: e.comment || e.host,
+                    status: e.status || 'unknown',
+                    since: e.since || '',
+                    type: e.type || 'simple'
+                };
+            });
+        } catch (err) {
+            console.error('[HCC] RouterOS netwatch error:', err.message);
+            // Connection may have dropped — reset for reconnect on next poll
+            this.client = null;
+            return null;
+        }
+    }
+
+    async poll() {
+        return this.getNetwatch();
+    }
+}
+
+module.exports = { RouterOSService };

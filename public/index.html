@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HCC // DASHBOARD</title>
+    <link rel="stylesheet" href="/css/hcc.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header HUD -->
+    <header id="hcc-header">
+        <div class="header-left">
+            <div class="status-dot green"></div>
+            <span class="status-label" style="color:var(--green);">ONLINE</span>
+            <div class="header-divider"></div>
+            <div class="status-dot cyan"></div>
+            <span class="status-label" style="color:var(--cyan);">HCC</span>
+        </div>
+        <div class="header-center">
+            <div id="hcc-clock">--:--:--</div>
+            <div id="hcc-date">---</div>
+        </div>
+        <div class="header-right">
+            <span style="color:var(--orange);letter-spacing:3px;font-weight:700;">SESSION</span>
+            <span id="hcc-session">00:00</span>
+            <div class="header-divider"></div>
+            <span class="hostname-badge">HCC-DASHBOARD</span>
+        </div>
+    </header>
+
+    <!-- Dashboard Grid -->
+    <main id="hcc-grid">
+        <!-- Panel: System Overview -->
+        <section class="hcc-panel" id="panel-overview">
+            <div class="hcc-panel-header">
+                <div class="dot"></div>
+                SYSTEM OVERVIEW
+            </div>
+            <div class="hcc-panel-body" id="overview-body">
+                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
+            </div>
+        </section>
+
+        <!-- Panel: Pi-hole DNS -->
+        <section class="hcc-panel" id="panel-pihole">
+            <div class="hcc-panel-header">
+                <div class="dot"></div>
+                PI-HOLE DNS
+            </div>
+            <div class="hcc-panel-body" id="pihole-body">
+                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
+            </div>
+        </section>
+
+        <!-- Panel: Server Health -->
+        <section class="hcc-panel" id="panel-servers">
+            <div class="hcc-panel-header">
+                <div class="dot"></div>
+                SERVER HEALTH
+            </div>
+            <div class="hcc-panel-body" id="servers-body">
+                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
+            </div>
+        </section>
+
+        <!-- Panel: Netwatch -->
+        <section class="hcc-panel" id="panel-netwatch">
+            <div class="hcc-panel-header">
+                <div class="dot"></div>
+                NETWATCH
+            </div>
+            <div class="hcc-panel-body" id="netwatch-body">
+                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
+            </div>
+        </section>
+
+        <!-- Panel: Quick Links -->
+        <section class="hcc-panel" id="panel-links">
+            <div class="hcc-panel-header">
+                <div class="dot"></div>
+                QUICK LINKS
+            </div>
+            <div class="hcc-panel-body" id="links-body">
+                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
+            </div>
+        </section>
+    </main>
+
+    <div id="particle-bg"></div>
+    <script src="/js/effects.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>
