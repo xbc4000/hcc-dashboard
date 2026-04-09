@@ -1,3 +1,6 @@
+// Background poller — orchestrates all service clients with caching
+// Every poll is wrapped in try/catch — nothing can crash the process
+
 const { PiholeClient } = require('./pihole');
 const { PrometheusClient } = require('./prometheus');
 const { RouterOSService } = require('./routeros');
@@ -17,36 +20,38 @@ class Poller {
             process.env.ROUTEROS_PASSWORD,
             process.env.ROUTEROS_PORT
         );
-        this.grafanaUrl = process.env.GRAFANA_URL || 'http://10.40.40.2:3000';
+        this.grafanaUrl = process.env.GRAFANA_URL || 'http://127.0.0.1:3000';
 
         this.cache = {
             pihole: { data: null, lastPoll: null, status: 'unknown' },
             prometheus: { data: null, lastPoll: null, status: 'unknown' },
-            netwatch: { data: null, lastPoll: null, status: 'unknown' },
+            router: { data: null, lastPoll: null, status: 'unknown' },
             grafana: { data: null, lastPoll: null, status: 'unknown' }
         };
+
+        this.startTime = Date.now();
     }
 
     start() {
         var self = this;
         console.log('[HCC] Poller starting...');
 
-        // Initial poll
-        setTimeout(function() { self.pollPihole(); }, 1000);
-        setTimeout(function() { self.pollPrometheus(); }, 2000);
-        setTimeout(function() { self.pollNetwatch(); }, 3000);
-        setTimeout(function() { self.pollGrafana(); }, 4000);
+        // Staggered initial polls
+        setTimeout(function() { self.pollPihole(); }, 2000);
+        setTimeout(function() { self.pollPrometheus(); }, 4000);
+        setTimeout(function() { self.pollRouter(); }, 6000);
+        setTimeout(function() { self.pollGrafana(); }, 8000);
 
-        // Recurring polls
-        var piholeInterval = (parseInt(process.env.POLL_PIHOLE) || 15) * 1000;
-        var promInterval = (parseInt(process.env.POLL_PROMETHEUS) || 30) * 1000;
-        var netwatchInterval = (parseInt(process.env.POLL_NETWATCH) || 30) * 1000;
-        var grafanaInterval = (parseInt(process.env.POLL_GRAFANA) || 60) * 1000;
+        // Recurring
+        var pi = (parseInt(process.env.POLL_PIHOLE) || 15) * 1000;
+        var pr = (parseInt(process.env.POLL_PROMETHEUS) || 30) * 1000;
+        var nw = (parseInt(process.env.POLL_NETWATCH) || 30) * 1000;
+        var gr = (parseInt(process.env.POLL_GRAFANA) || 60) * 1000;
 
-        setInterval(function() { self.pollPihole(); }, piholeInterval);
-        setInterval(function() { self.pollPrometheus(); }, promInterval);
-        setInterval(function() { self.pollNetwatch(); }, netwatchInterval);
-        setInterval(function() { self.pollGrafana(); }, grafanaInterval);
+        setInterval(function() { self.pollPihole(); }, pi);
+        setInterval(function() { self.pollPrometheus(); }, pr);
+        setInterval(function() { self.pollRouter(); }, nw);
+        setInterval(function() { self.pollGrafana(); }, gr);
     }
 
     async pollPihole() {
@@ -56,6 +61,7 @@ class Poller {
                 this.cache.pihole = { data: data, lastPoll: Date.now(), status: 'up' };
             } else {
                 this.cache.pihole.status = 'down';
+                this.cache.pihole.lastPoll = Date.now();
             }
         } catch (err) {
             console.error('[HCC] Pi-hole poll error:', err.message);
@@ -70,6 +76,7 @@ class Poller {
                 this.cache.prometheus = { data: data, lastPoll: Date.now(), status: 'up' };
             } else {
                 this.cache.prometheus.status = 'down';
+                this.cache.prometheus.lastPoll = Date.now();
             }
         } catch (err) {
             console.error('[HCC] Prometheus poll error:', err.message);
@@ -77,52 +84,60 @@ class Poller {
         }
     }
 
-    async pollNetwatch() {
+    async pollRouter() {
         try {
             var data = await this.routeros.poll();
             if (data) {
-                this.cache.netwatch = { data: data, lastPoll: Date.now(), status: 'up' };
+                this.cache.router = { data: data, lastPoll: Date.now(), status: 'up' };
             } else {
-                this.cache.netwatch.status = 'down';
+                this.cache.router.status = 'down';
+                this.cache.router.lastPoll = Date.now();
             }
         } catch (err) {
-            console.error('[HCC] Netwatch poll error:', err.message);
-            this.cache.netwatch.status = 'error';
+            console.error('[HCC] Router poll error:', err.message);
+            this.cache.router.status = 'error';
         }
     }
 
     async pollGrafana() {
         try {
-            var res = await fetch(this.grafanaUrl + '/api/health');
+            var res = await fetch(this.grafanaUrl + '/api/health', { signal: AbortSignal.timeout(5000) });
             if (res.ok) {
                 this.cache.grafana = { data: { status: 'ok' }, lastPoll: Date.now(), status: 'up' };
             } else {
                 this.cache.grafana.status = 'down';
+                this.cache.grafana.lastPoll = Date.now();
             }
         } catch (err) {
             this.cache.grafana.status = 'down';
+            this.cache.grafana.lastPoll = Date.now();
         }
     }
 
     getOverview() {
+        var routerData = this.cache.router.data || {};
         return {
             timestamp: Date.now(),
+            uptime: Math.floor((Date.now() - this.startTime) / 1000),
             services: {
                 pihole: { status: this.cache.pihole.status, lastPoll: this.cache.pihole.lastPoll },
                 prometheus: { status: this.cache.prometheus.status, lastPoll: this.cache.prometheus.lastPoll },
-                router: { status: this.cache.netwatch.status, lastPoll: this.cache.netwatch.lastPoll },
+                router: { status: this.cache.router.status, lastPoll: this.cache.router.lastPoll },
                 grafana: { status: this.cache.grafana.status, lastPoll: this.cache.grafana.lastPoll }
             },
             pihole: this.cache.pihole.data,
             prometheus: this.cache.prometheus.data,
-            netwatch: this.cache.netwatch.data,
+            router: routerData.system || null,
+            netwatch: routerData.netwatch || null,
+            interfaces: routerData.interfaces || null,
             links: [
-                { name: 'Grafana', url: this.grafanaUrl, status: this.cache.grafana.status, icon: 'chart' },
-                { name: 'Pi-hole', url: (process.env.PIHOLE_URL || 'http://172.17.0.2') + '/admin', status: this.cache.pihole.status, icon: 'shield' },
-                { name: 'iDRAC1', url: 'https://10.30.30.10', status: 'unknown', icon: 'server' },
-                { name: 'iDRAC2', url: 'https://10.30.30.11', status: 'unknown', icon: 'server' },
-                { name: 'Router', url: 'http://10.10.10.1', status: this.cache.netwatch.status, icon: 'router' },
-                { name: 'Portainer', url: 'http://10.40.40.2:9002', status: 'unknown', icon: 'docker' }
+                { name: 'Grafana', url: this.grafanaUrl, status: this.cache.grafana.status },
+                { name: 'Pi-hole', url: (process.env.PIHOLE_URL || 'http://172.17.0.2') + '/admin', status: this.cache.pihole.status },
+                { name: 'iDRAC1', url: 'https://10.30.30.10', status: 'unknown' },
+                { name: 'iDRAC2', url: 'https://10.30.30.11', status: 'unknown' },
+                { name: 'Router', url: 'http://10.10.10.1', status: this.cache.router.status },
+                { name: 'Portainer', url: 'http://10.40.40.2:9002', status: 'unknown' },
+                { name: 'AMP', url: 'http://10.20.20.3:8080', status: 'unknown' }
             ]
         };
     }

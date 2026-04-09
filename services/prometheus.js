@@ -1,12 +1,14 @@
+// Prometheus query client — server health + RPi metrics
+
 class PrometheusClient {
     constructor(baseUrl) {
-        this.baseUrl = baseUrl || 'http://10.40.40.2:9090';
+        this.baseUrl = (baseUrl || 'http://127.0.0.1:9090').replace(/\/+$/, '');
     }
 
     async query(promql) {
         try {
             var url = this.baseUrl + '/api/v1/query?query=' + encodeURIComponent(promql);
-            var res = await fetch(url);
+            var res = await fetch(url, { signal: AbortSignal.timeout(10000) });
             if (!res.ok) return null;
             var data = await res.json();
             if (data.status !== 'success') return null;
@@ -28,17 +30,28 @@ class PrometheusClient {
             ram: '(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100',
             disk: '(1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100',
             load: 'node_load1',
-            uptime: 'node_time_seconds - node_boot_time_seconds'
+            uptime: 'node_time_seconds - node_boot_time_seconds',
+            totalRam: 'node_memory_MemTotal_bytes',
+            totalDisk: 'node_filesystem_size_bytes{mountpoint="/"}'
         };
 
         var results = {};
-        for (var key in queries) {
-            results[key] = await this.query(queries[key]);
-        }
+        // Run queries in parallel
+        var keys = Object.keys(queries);
+        var promises = keys.map(function(key) {
+            return this.query(queries[key]);
+        }.bind(this));
+
+        var resolved = await Promise.all(promises);
+        keys.forEach(function(key, i) {
+            results[key] = resolved[i];
+        });
 
         var servers = {};
         for (var name in instances) {
             var inst = instances[name];
+            var totalRam = this.findValue(results.totalRam, inst);
+            var totalDisk = this.findValue(results.totalDisk, inst);
             servers[name] = {
                 instance: inst,
                 cpu: this.findValue(results.cpu, inst),
@@ -46,15 +59,43 @@ class PrometheusClient {
                 disk: this.findValue(results.disk, inst),
                 load: this.findValue(results.load, inst),
                 uptime: this.findValue(results.uptime, inst),
-                status: 'unknown'
+                totalRamGB: totalRam ? (totalRam / 1073741824).toFixed(0) : null,
+                totalDiskGB: totalDisk ? (totalDisk / 1073741824).toFixed(0) : null,
+                status: 'down'
             };
-            // If we got any metric, server is up
             if (servers[name].cpu !== null || servers[name].ram !== null) {
                 servers[name].status = 'up';
             }
         }
 
         return servers;
+    }
+
+    async getTargets() {
+        try {
+            var url = this.baseUrl + '/api/v1/targets?state=active';
+            var res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+            if (!res.ok) return null;
+            var data = await res.json();
+            if (data.status !== 'success') return null;
+            var active = data.data.activeTargets || [];
+            return {
+                total: active.length,
+                up: active.filter(function(t) { return t.health === 'up'; }).length,
+                down: active.filter(function(t) { return t.health === 'down'; }).length,
+                targets: active.map(function(t) {
+                    return {
+                        job: t.labels.job || '',
+                        instance: t.labels.instance || '',
+                        health: t.health,
+                        lastScrape: t.lastScrape
+                    };
+                })
+            };
+        } catch (err) {
+            console.error('[HCC] Prometheus targets error:', err.message);
+            return null;
+        }
     }
 
     findValue(resultArray, instance) {
@@ -68,7 +109,14 @@ class PrometheusClient {
     }
 
     async poll() {
-        return this.getServerHealth();
+        try {
+            var health = await this.getServerHealth();
+            var targets = await this.getTargets();
+            return { servers: health, targets: targets };
+        } catch (err) {
+            console.error('[HCC] Prometheus poll error:', err.message);
+            return null;
+        }
     }
 }
 

@@ -15,16 +15,18 @@
             <div class="status-dot green"></div>
             <span class="status-label" style="color:var(--green);">ONLINE</span>
             <div class="header-divider"></div>
-            <div class="status-dot cyan"></div>
+            <div class="status-dot cyan" id="hcc-poll-dot"></div>
             <span class="status-label" style="color:var(--cyan);">HCC</span>
+            <div class="header-divider"></div>
+            <span id="hcc-services-count" style="color:var(--text-muted);font-size:0.7rem;letter-spacing:2px;">---</span>
         </div>
         <div class="header-center">
             <div id="hcc-clock">--:--:--</div>
             <div id="hcc-date">---</div>
         </div>
         <div class="header-right">
-            <span style="color:var(--orange);letter-spacing:3px;font-weight:700;">SESSION</span>
-            <span id="hcc-session">00:00</span>
+            <span style="color:var(--orange);letter-spacing:3px;font-weight:700;font-size:0.75rem;">SESSION</span>
+            <span id="hcc-session" style="color:var(--orange);font-weight:800;letter-spacing:3px;">00:00</span>
             <div class="header-divider"></div>
             <span class="hostname-badge">HCC-DASHBOARD</span>
         </div>
@@ -32,59 +34,39 @@
 
     <!-- Dashboard Grid -->
     <main id="hcc-grid">
-        <!-- Panel: System Overview -->
         <section class="hcc-panel" id="panel-overview">
-            <div class="hcc-panel-header">
-                <div class="dot"></div>
-                SYSTEM OVERVIEW
-            </div>
-            <div class="hcc-panel-body" id="overview-body">
-                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
-            </div>
+            <div class="hcc-panel-header"><div class="dot"></div>SYSTEM OVERVIEW</div>
+            <div class="hcc-panel-body" id="overview-body"><div class="panel-loading">CONNECTING...</div></div>
         </section>
 
-        <!-- Panel: Pi-hole DNS -->
+        <section class="hcc-panel" id="panel-router">
+            <div class="hcc-panel-header"><div class="dot"></div>ROUTER — RB3011</div>
+            <div class="hcc-panel-body" id="router-body"><div class="panel-loading">CONNECTING...</div></div>
+        </section>
+
         <section class="hcc-panel" id="panel-pihole">
-            <div class="hcc-panel-header">
-                <div class="dot"></div>
-                PI-HOLE DNS
-            </div>
-            <div class="hcc-panel-body" id="pihole-body">
-                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
-            </div>
+            <div class="hcc-panel-header"><div class="dot"></div>PI-HOLE DNS</div>
+            <div class="hcc-panel-body" id="pihole-body"><div class="panel-loading">CONNECTING...</div></div>
         </section>
 
-        <!-- Panel: Server Health -->
         <section class="hcc-panel" id="panel-servers">
-            <div class="hcc-panel-header">
-                <div class="dot"></div>
-                SERVER HEALTH
-            </div>
-            <div class="hcc-panel-body" id="servers-body">
-                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
-            </div>
+            <div class="hcc-panel-header"><div class="dot"></div>SERVER HEALTH</div>
+            <div class="hcc-panel-body" id="servers-body"><div class="panel-loading">CONNECTING...</div></div>
         </section>
 
-        <!-- Panel: Netwatch -->
         <section class="hcc-panel" id="panel-netwatch">
-            <div class="hcc-panel-header">
-                <div class="dot"></div>
-                NETWATCH
-            </div>
-            <div class="hcc-panel-body" id="netwatch-body">
-                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
-            </div>
+            <div class="hcc-panel-header"><div class="dot"></div>NETWATCH — <span id="netwatch-count">0</span> HOSTS</div>
+            <div class="hcc-panel-body" id="netwatch-body"><div class="panel-loading">CONNECTING...</div></div>
         </section>
 
-        <!-- Panel: Quick Links -->
-        <section class="hcc-panel" id="panel-links">
-            <div class="hcc-panel-header">
-                <div class="dot"></div>
-                QUICK LINKS
-            </div>
-            <div class="hcc-panel-body" id="links-body">
-                <div style="color:var(--text-muted);text-align:center;padding:20px;letter-spacing:2px;">CONNECTING...</div>
-            </div>
+        <section class="hcc-panel" id="panel-targets">
+            <div class="hcc-panel-header"><div class="dot"></div>PROMETHEUS TARGETS</div>
+            <div class="hcc-panel-body" id="targets-body"><div class="panel-loading">CONNECTING...</div></div>
+        </section>
+
+        <section class="hcc-panel span-full" id="panel-links">
+            <div class="hcc-panel-header"><div class="dot"></div>QUICK LINKS</div>
+            <div class="hcc-panel-body" id="links-body"><div class="panel-loading">CONNECTING...</div></div>
         </section>
     </main>
 
