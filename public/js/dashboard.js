@@ -548,13 +548,59 @@
         html += '</div>';
         html += '</div></div>';
 
-        // ── Spotify ──
-        html += '<div class="cc-card cc-spotify">';
-        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:#1DB954;">♪</span><span class="cc-card-title">SPOTIFY</span><span class="cc-card-status">EMBED</span></div>';
+        // ── Spotify Remote ──
+        html += '<div class="cc-card cc-spotify spotify-card">';
+        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:#1DB954;">♪</span><span class="cc-card-title">SPOTIFY CONNECT</span><span id="cc-spotify-status" class="cc-card-status">DISCONNECTED</span></div>';
         html += '<div class="cc-card-body">';
-        html += '<div class="cc-row"><input type="text" id="cc-spotify-uri" placeholder="spotify:playlist:... or share URL" class="cc-input" /></div>';
-        html += '<div class="cc-row"><button id="cc-spotify-load" class="cc-btn">LOAD</button></div>';
-        html += '<div id="cc-spotify-embed" style="margin-top:10px;min-height:80px;"><div class="cc-empty">Paste a Spotify URI/URL to embed</div></div>';
+        // Setup view (shown until OAuth complete)
+        html += '<div id="cc-spotify-setup">';
+        html += '<div class="cc-row"><input type="text" id="cc-spotify-clientid" placeholder="Spotify Client ID" class="cc-input" /></div>';
+        html += '<div class="cc-row"><button id="cc-spotify-connect" class="cc-btn">CONNECT TO SPOTIFY</button></div>';
+        html += '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;line-height:1.5;">';
+        html += 'Register an app at <span style="color:var(--cyan);">developer.spotify.com</span><br/>';
+        html += 'Add this URL as redirect URI:<br/>';
+        html += '<span id="cc-spotify-redirect" style="color:var(--green);word-break:break-all;"></span>';
+        html += '</div>';
+        html += '</div>';
+        // Player view (shown when authenticated)
+        html += '<div id="cc-spotify-player" style="display:none;">';
+        html += '<div class="sp-now-playing">';
+        html += '<div class="sp-art-wrap"><img id="cc-sp-art" class="sp-art" src="" alt=""/><div class="sp-art-overlay"></div></div>';
+        html += '<div class="sp-meta">';
+        html += '<div id="cc-sp-track" class="sp-track">---</div>';
+        html += '<div id="cc-sp-artist" class="sp-artist">---</div>';
+        html += '<div id="cc-sp-album" class="sp-album">---</div>';
+        html += '</div>';
+        html += '</div>';
+        // Progress bar
+        html += '<div class="sp-progress-row">';
+        html += '<span id="cc-sp-time" class="sp-time">0:00</span>';
+        html += '<div class="sp-progress-track" id="cc-sp-progress-track"><div id="cc-sp-progress-fill" class="sp-progress-fill"></div></div>';
+        html += '<span id="cc-sp-duration" class="sp-time">0:00</span>';
+        html += '</div>';
+        // Controls
+        html += '<div class="sp-controls">';
+        html += '<button class="sp-ctrl" id="cc-sp-devices" title="Devices">⌃</button>';
+        html += '<button class="sp-ctrl" id="cc-sp-shuffle" title="Shuffle">⇄</button>';
+        html += '<button class="sp-ctrl" id="cc-sp-prev" title="Previous">⏮</button>';
+        html += '<button class="sp-ctrl sp-ctrl-play" id="cc-sp-play" title="Play/Pause">⏵</button>';
+        html += '<button class="sp-ctrl" id="cc-sp-next" title="Next">⏭</button>';
+        html += '<button class="sp-ctrl" id="cc-sp-repeat" title="Repeat">⟳</button>';
+        html += '</div>';
+        // Visualizer
+        html += '<div class="sp-visualizer" id="cc-sp-viz">';
+        for (var vi = 0; vi < 24; vi++) html += '<div class="sp-viz-bar" style="animation-delay:-' + (vi * 0.1) + 's;"></div>';
+        html += '</div>';
+        // Volume
+        html += '<div class="sp-volume-row">';
+        html += '<span style="color:var(--text-muted);font-size:0.7rem;">VOL</span>';
+        html += '<input type="range" min="0" max="100" value="50" id="cc-sp-volume" class="cc-slider" style="flex:1;" />';
+        html += '<span id="cc-sp-volume-val" style="color:var(--text-bright);font-size:0.7rem;min-width:30px;text-align:right;">50</span>';
+        html += '</div>';
+        // Devices (hidden by default)
+        html += '<div id="cc-sp-devices-list" class="sp-devices" style="display:none;"></div>';
+        html += '<div class="cc-row" style="margin-top:8px;"><button id="cc-sp-logout" class="cc-btn cc-btn-warn" style="font-size:0.65rem;padding:4px 10px;">LOGOUT</button></div>';
+        html += '</div>';
         html += '</div></div>';
 
         // ── Govee Lights ──
@@ -733,33 +779,298 @@
         recBtn.addEventListener('click', function() { obsRequest('ToggleRecord'); });
     }
 
-    // ── SPOTIFY EMBED ──
-    function initSpotifyEmbed() {
-        var input = document.getElementById('cc-spotify-uri');
-        var btn = document.getElementById('cc-spotify-load');
-        var embed = document.getElementById('cc-spotify-embed');
+    // ── SPOTIFY REMOTE CONTROLLER ──
+    var spState = { token: null, expiresAt: 0, refreshToken: null, clientId: null, pollTimer: null };
 
-        var saved = localStorage.getItem('hcc-spotify-uri');
-        if (saved) { input.value = saved; loadEmbed(saved); }
+    function spLoadState() {
+        try {
+            var s = JSON.parse(localStorage.getItem('hcc-spotify') || '{}');
+            spState.token = s.token || null;
+            spState.expiresAt = s.expiresAt || 0;
+            spState.refreshToken = s.refreshToken || null;
+            spState.clientId = s.clientId || null;
+        } catch(e) {}
+    }
+    function spSaveState() {
+        localStorage.setItem('hcc-spotify', JSON.stringify({
+            token: spState.token, expiresAt: spState.expiresAt,
+            refreshToken: spState.refreshToken, clientId: spState.clientId
+        }));
+    }
 
-        function loadEmbed(uri) {
-            // Convert spotify URI or URL to embed URL
-            var embedUrl = '';
-            if (uri.indexOf('spotify:') === 0) {
-                var parts = uri.split(':');
-                if (parts.length >= 3) embedUrl = 'https://open.spotify.com/embed/' + parts[1] + '/' + parts[2];
-            } else if (uri.indexOf('open.spotify.com') !== -1) {
-                embedUrl = uri.replace('open.spotify.com/', 'open.spotify.com/embed/').split('?')[0];
+    // PKCE helpers
+    function spRandomString(len) {
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        var s = '';
+        var arr = new Uint8Array(len);
+        crypto.getRandomValues(arr);
+        for (var i = 0; i < len; i++) s += chars[arr[i] % chars.length];
+        return s;
+    }
+    async function spSha256(plain) {
+        var data = new TextEncoder().encode(plain);
+        return await crypto.subtle.digest('SHA-256', data);
+    }
+    function spBase64Url(buf) {
+        var bytes = new Uint8Array(buf);
+        var str = '';
+        for (var i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+        return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    async function spStartAuth(clientId) {
+        var verifier = spRandomString(64);
+        var challenge = spBase64Url(await spSha256(verifier));
+        sessionStorage.setItem('hcc-spotify-verifier', verifier);
+        sessionStorage.setItem('hcc-spotify-clientid', clientId);
+        var redirectUri = window.location.origin + window.location.pathname;
+        var scope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+        var authUrl = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+            client_id: clientId,
+            response_type: 'code',
+            redirect_uri: redirectUri,
+            code_challenge_method: 'S256',
+            code_challenge: challenge,
+            scope: scope
+        }).toString();
+        window.location.href = authUrl;
+    }
+
+    async function spExchangeCode(code) {
+        var verifier = sessionStorage.getItem('hcc-spotify-verifier');
+        var clientId = sessionStorage.getItem('hcc-spotify-clientid');
+        if (!verifier || !clientId) return;
+        var redirectUri = window.location.origin + window.location.pathname;
+        try {
+            var res = await fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    client_id: clientId,
+                    grant_type: 'authorization_code',
+                    code: code,
+                    redirect_uri: redirectUri,
+                    code_verifier: verifier
+                }).toString()
+            });
+            var data = await res.json();
+            if (data.access_token) {
+                spState.token = data.access_token;
+                spState.refreshToken = data.refresh_token;
+                spState.expiresAt = Date.now() + (data.expires_in * 1000);
+                spState.clientId = clientId;
+                spSaveState();
+                sessionStorage.removeItem('hcc-spotify-verifier');
+                sessionStorage.removeItem('hcc-spotify-clientid');
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
-            if (!embedUrl) { embed.innerHTML = '<div class="cc-empty">Invalid Spotify URI/URL</div>'; return; }
-            embed.innerHTML = '<iframe src="' + embedUrl + '" width="100%" height="152" frameborder="0" allow="encrypted-media" style="border-radius:8px;"></iframe>';
+        } catch(e) { console.error('[HCC] Spotify auth error', e); }
+    }
+
+    async function spRefreshToken() {
+        if (!spState.refreshToken || !spState.clientId) return false;
+        try {
+            var res = await fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    client_id: spState.clientId,
+                    grant_type: 'refresh_token',
+                    refresh_token: spState.refreshToken
+                }).toString()
+            });
+            var data = await res.json();
+            if (data.access_token) {
+                spState.token = data.access_token;
+                spState.expiresAt = Date.now() + (data.expires_in * 1000);
+                if (data.refresh_token) spState.refreshToken = data.refresh_token;
+                spSaveState();
+                return true;
+            }
+        } catch(e) { console.error('[HCC] Spotify refresh error', e); }
+        return false;
+    }
+
+    async function spApi(method, path, body) {
+        if (!spState.token) return null;
+        if (Date.now() >= spState.expiresAt - 60000) await spRefreshToken();
+        try {
+            var opts = { method: method, headers: { 'Authorization': 'Bearer ' + spState.token } };
+            if (body) {
+                opts.headers['Content-Type'] = 'application/json';
+                opts.body = JSON.stringify(body);
+            }
+            var res = await fetch('https://api.spotify.com/v1' + path, opts);
+            if (res.status === 204) return {};
+            if (!res.ok) return null;
+            return await res.json();
+        } catch(e) { return null; }
+    }
+
+    function spFmtTime(ms) {
+        var s = Math.floor(ms / 1000);
+        var m = Math.floor(s / 60);
+        s = s % 60;
+        return m + ':' + String(s).padStart(2, '0');
+    }
+
+    function spShowPlayer() {
+        document.getElementById('cc-spotify-setup').style.display = 'none';
+        document.getElementById('cc-spotify-player').style.display = '';
+    }
+    function spShowSetup() {
+        document.getElementById('cc-spotify-setup').style.display = '';
+        document.getElementById('cc-spotify-player').style.display = 'none';
+    }
+
+    var spPlaying = false;
+    async function spPoll() {
+        var data = await spApi('GET', '/me/player');
+        var statusEl = document.getElementById('cc-spotify-status');
+        if (!data || !data.item) {
+            if (statusEl) { statusEl.textContent = 'IDLE'; statusEl.style.color = 'var(--text-muted)'; }
+            return;
+        }
+        if (statusEl) { statusEl.textContent = data.is_playing ? 'PLAYING' : 'PAUSED'; statusEl.style.color = data.is_playing ? '#1DB954' : 'var(--text-muted)'; }
+        spPlaying = data.is_playing;
+
+        var item = data.item;
+        document.getElementById('cc-sp-track').textContent = item.name || '---';
+        document.getElementById('cc-sp-artist').textContent = (item.artists || []).map(function(a) { return a.name; }).join(', ');
+        document.getElementById('cc-sp-album').textContent = item.album ? item.album.name : '';
+        if (item.album && item.album.images && item.album.images[0]) {
+            var artEl = document.getElementById('cc-sp-art');
+            if (artEl.src !== item.album.images[0].url) artEl.src = item.album.images[0].url;
+        }
+        // Progress
+        var progressMs = data.progress_ms || 0;
+        var durationMs = item.duration_ms || 1;
+        document.getElementById('cc-sp-time').textContent = spFmtTime(progressMs);
+        document.getElementById('cc-sp-duration').textContent = '-' + spFmtTime(durationMs - progressMs);
+        document.getElementById('cc-sp-progress-fill').style.width = (progressMs / durationMs * 100) + '%';
+        // Play button
+        document.getElementById('cc-sp-play').textContent = data.is_playing ? '⏸' : '⏵';
+        // Volume
+        if (data.device && data.device.volume_percent !== undefined) {
+            var v = data.device.volume_percent;
+            document.getElementById('cc-sp-volume').value = v;
+            document.getElementById('cc-sp-volume-val').textContent = v;
+        }
+        // Visualizer state
+        document.getElementById('cc-sp-viz').classList.toggle('playing', data.is_playing);
+        // Shuffle/Repeat highlight
+        document.getElementById('cc-sp-shuffle').classList.toggle('active', !!data.shuffle_state);
+        document.getElementById('cc-sp-repeat').classList.toggle('active', data.repeat_state && data.repeat_state !== 'off');
+    }
+
+    async function spLoadDevices() {
+        var listEl = document.getElementById('cc-sp-devices-list');
+        listEl.innerHTML = '<div class="cc-empty">Loading...</div>';
+        var data = await spApi('GET', '/me/player/devices');
+        if (!data || !data.devices) { listEl.innerHTML = '<div class="cc-empty">No devices</div>'; return; }
+        listEl.innerHTML = '';
+        data.devices.forEach(function(dev) {
+            var item = document.createElement('div');
+            item.className = 'sp-device' + (dev.is_active ? ' active' : '');
+            var icon = dev.type === 'Computer' ? '▣' : dev.type === 'Smartphone' ? '▢' : dev.type === 'Speaker' ? '◈' : '◯';
+            item.innerHTML = '<span class="sp-device-icon">' + icon + '</span><span class="sp-device-name">' + esc(dev.name) + '</span><span class="sp-device-type">' + esc(dev.type) + '</span>';
+            item.addEventListener('click', async function() {
+                await spApi('PUT', '/me/player', { device_ids: [dev.id], play: spPlaying });
+                setTimeout(function() { spPoll(); spLoadDevices(); }, 500);
+            });
+            listEl.appendChild(item);
+        });
+    }
+
+    function initSpotifyEmbed() {
+        spLoadState();
+        // Show redirect URI hint
+        var redirEl = document.getElementById('cc-spotify-redirect');
+        if (redirEl) redirEl.textContent = window.location.origin + window.location.pathname;
+
+        // Handle OAuth callback (code in URL)
+        var urlParams = new URLSearchParams(window.location.search);
+        var code = urlParams.get('code');
+        if (code) {
+            spExchangeCode(code).then(function() {
+                if (spState.token) { spShowPlayer(); spPoll(); spState.pollTimer = setInterval(spPoll, 3000); }
+            });
+        } else if (spState.token && spState.refreshToken) {
+            spShowPlayer();
+            spPoll();
+            spState.pollTimer = setInterval(spPoll, 3000);
         }
 
-        btn.addEventListener('click', function() {
-            var uri = input.value.trim();
-            if (!uri) return;
-            localStorage.setItem('hcc-spotify-uri', uri);
-            loadEmbed(uri);
+        // Setup view
+        var clientIdInput = document.getElementById('cc-spotify-clientid');
+        if (spState.clientId) clientIdInput.value = spState.clientId;
+        document.getElementById('cc-spotify-connect').addEventListener('click', function() {
+            var cid = clientIdInput.value.trim();
+            if (!cid) return;
+            spStartAuth(cid);
+        });
+
+        // Player controls
+        document.getElementById('cc-sp-play').addEventListener('click', async function() {
+            await spApi('PUT', spPlaying ? '/me/player/pause' : '/me/player/play');
+            setTimeout(spPoll, 300);
+        });
+        document.getElementById('cc-sp-prev').addEventListener('click', async function() {
+            await spApi('POST', '/me/player/previous');
+            setTimeout(spPoll, 500);
+        });
+        document.getElementById('cc-sp-next').addEventListener('click', async function() {
+            await spApi('POST', '/me/player/next');
+            setTimeout(spPoll, 500);
+        });
+        document.getElementById('cc-sp-shuffle').addEventListener('click', async function() {
+            var btn = this;
+            var newState = !btn.classList.contains('active');
+            await spApi('PUT', '/me/player/shuffle?state=' + newState);
+            setTimeout(spPoll, 300);
+        });
+        document.getElementById('cc-sp-repeat').addEventListener('click', async function() {
+            // Cycle: off → context → track → off
+            var data = await spApi('GET', '/me/player');
+            var cur = (data && data.repeat_state) || 'off';
+            var next = cur === 'off' ? 'context' : cur === 'context' ? 'track' : 'off';
+            await spApi('PUT', '/me/player/repeat?state=' + next);
+            setTimeout(spPoll, 300);
+        });
+        document.getElementById('cc-sp-volume').addEventListener('input', function() {
+            document.getElementById('cc-sp-volume-val').textContent = this.value;
+        });
+        document.getElementById('cc-sp-volume').addEventListener('change', async function() {
+            await spApi('PUT', '/me/player/volume?volume_percent=' + this.value);
+        });
+        // Seek on progress bar click
+        document.getElementById('cc-sp-progress-track').addEventListener('click', async function(e) {
+            var rect = this.getBoundingClientRect();
+            var pct = (e.clientX - rect.left) / rect.width;
+            var data = await spApi('GET', '/me/player');
+            if (data && data.item) {
+                var seekMs = Math.floor(data.item.duration_ms * pct);
+                await spApi('PUT', '/me/player/seek?position_ms=' + seekMs);
+                setTimeout(spPoll, 300);
+            }
+        });
+        // Devices toggle
+        document.getElementById('cc-sp-devices').addEventListener('click', function() {
+            var listEl = document.getElementById('cc-sp-devices-list');
+            if (listEl.style.display === 'none') {
+                listEl.style.display = '';
+                spLoadDevices();
+            } else {
+                listEl.style.display = 'none';
+            }
+        });
+        // Logout
+        document.getElementById('cc-sp-logout').addEventListener('click', function() {
+            if (spState.pollTimer) clearInterval(spState.pollTimer);
+            spState = { token: null, expiresAt: 0, refreshToken: null, clientId: spState.clientId, pollTimer: null };
+            spSaveState();
+            spShowSetup();
         });
     }
 
