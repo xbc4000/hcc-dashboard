@@ -308,6 +308,22 @@ body {
     text-transform: uppercase;
 }
 
+/* LIVE pulse dot */
+#hcc-live-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green), 0 0 16px rgba(0,255,136,0.3);
+    animation: hccLivePulse 1.5s ease-in-out infinite;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+@keyframes hccLivePulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--green), 0 0 16px rgba(0,255,136,0.3); }
+    50% { opacity: 0.4; box-shadow: 0 0 4px var(--green), 0 0 8px rgba(0,255,136,0.15); }
+}
+
 .header-divider {
     width: 1px;
     height: 24px;

@@ -55,6 +55,7 @@
             renderLinks(d.links);
             updateServiceCount(d.services);
             updateTicker(d.pihole);
+            updateHeaderLive(d.pihole);
             doAudio(d.pihole, d.services);
             flashPanels();
             // Re-apply effects that get destroyed by innerHTML re-renders
@@ -466,6 +467,31 @@
         // Use top blocked from pihole exporter data if available
         var text = 'QUERIES: ' + fmtNum(pihole.totalQueries) + '  ◆  BLOCKED: ' + fmtNum(pihole.blockedQueries) + '  ◆  BLOCK RATE: ' + (pihole.percentBlocked||0).toFixed(1) + '%  ◆  GRAVITY: ' + fmtNum(pihole.gravitySize) + ' DOMAINS  ◆  CLIENTS: ' + (pihole.clients||0);
         content.textContent = text + '  ◆  ' + text;
+    }
+
+    // ── HEADER LIVE INDICATORS ──
+    function updateHeaderLive(pihole) {
+        if (!pihole) return;
+        // DNS counter
+        var dnsEl = document.getElementById('hcc-dns-count');
+        if (dnsEl) dnsEl.textContent = fmtNum(pihole.totalQueries);
+        // LIVE dot flash on query change
+        var dot = document.getElementById('hcc-live-dot');
+        var label = document.getElementById('hcc-live-label');
+        if (dot && lastQueries !== null && pihole.totalQueries !== lastQueries) {
+            dot.style.transform = 'scale(2)';
+            dot.style.boxShadow = '0 0 20px #00ff88, 0 0 40px rgba(0,255,136,0.7)';
+            dot.style.opacity = '1';
+            dot.style.animation = 'none';
+            if (label) label.style.textShadow = '0 0 15px rgba(0,255,136,0.9)';
+            setTimeout(function() {
+                dot.style.transform = 'scale(1)';
+                dot.style.boxShadow = '';
+                dot.style.opacity = '';
+                dot.style.animation = 'hccLivePulse 1.5s ease-in-out infinite';
+                if (label) label.style.textShadow = '0 0 8px rgba(0,255,136,0.4)';
+            }, 500);
+        }
     }
 
     // ── AUDIO ──
