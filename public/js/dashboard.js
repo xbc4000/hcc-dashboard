@@ -773,14 +773,21 @@
                             return;
                         }
                         try {
-                            var encoder = new TextEncoder();
-                            var data1 = await crypto.subtle.digest('SHA-256', encoder.encode(pass + msg.d.authentication.salt));
-                            var b64a = btoa(String.fromCharCode.apply(null, new Uint8Array(data1)));
-                            var data2 = await crypto.subtle.digest('SHA-256', encoder.encode(b64a + msg.d.authentication.challenge));
-                            identifyData.authentication = btoa(String.fromCharCode.apply(null, new Uint8Array(data2)));
+                            // Use server-side SHA-256 (crypto.subtle is unavailable on HTTP)
+                            async function sha256B64(input) {
+                                var r = await fetch('/api/sha256-base64', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ input: input })
+                                });
+                                if (!r.ok) throw new Error('SHA-256 helper returned ' + r.status);
+                                return (await r.json()).hash;
+                            }
+                            var b64a = await sha256B64(pass + msg.d.authentication.salt);
+                            identifyData.authentication = await sha256B64(b64a + msg.d.authentication.challenge);
                             obsLog('Sending Identify with auth', 'info');
                         } catch(e) {
-                            obsLog('Crypto error: ' + e.message, 'err');
+                            obsLog('Auth hash error: ' + e.message, 'err');
                             return;
                         }
                     } else {
