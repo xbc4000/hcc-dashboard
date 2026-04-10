@@ -15,6 +15,7 @@ const path = require('path');
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
 const healthRoutes = require('./routes/health');
+const spotifyRoutes = require('./routes/spotify');
 const { Poller } = require('./services/poller');
 
 const app = express();
@@ -63,6 +64,9 @@ app.use('/vendor/gridstack', express.static(path.join(__dirname, 'node_modules/g
 
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Spotify OAuth + API proxy (authenticated)
+app.use('/spotify', requireAuth, spotifyRoutes);
 
 // API routes (authenticated)
 app.use('/api', requireAuth, apiRoutes);

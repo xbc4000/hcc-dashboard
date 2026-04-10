@@ -1371,6 +1371,20 @@ body.hcc-edit-mode .hcc-panel {
 .cc-btn-mini:hover { border-color: var(--cyan); color: var(--cyan); }
 .cc-slider { flex: 1; height: 4px; }
 
+.cc-log {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    margin-top: 8px;
+    max-height: 140px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    line-height: 1.5;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,183,255,0.3) transparent;
+}
+
 .cc-empty {
     font-size: 0.75rem;
     color: var(--text-muted);

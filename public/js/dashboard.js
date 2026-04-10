@@ -528,9 +528,14 @@
         html += '<div class="cc-card cc-obs">';
         html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:var(--cyan-bright);">◉</span><span class="cc-card-title">OBS STUDIO</span><span id="cc-obs-status" class="cc-card-status">DISCONNECTED</span></div>';
         html += '<div class="cc-card-body">';
-        html += '<div class="cc-row"><input type="text" id="cc-obs-host" placeholder="ws://10.10.10.2:4455" class="cc-input" /></div>';
-        html += '<div class="cc-row"><input type="password" id="cc-obs-pass" placeholder="WebSocket password" class="cc-input" /></div>';
+        html += '<div class="cc-row"><input type="text" id="cc-obs-host" placeholder="10.10.10.2:4455 (ws:// auto-added)" class="cc-input" /></div>';
+        html += '<div class="cc-row"><input type="password" id="cc-obs-pass" placeholder="WebSocket password (blank if disabled)" class="cc-input" /></div>';
         html += '<div class="cc-row"><button id="cc-obs-connect" class="cc-btn">CONNECT</button><button id="cc-obs-disconnect" class="cc-btn cc-btn-warn">DISCONNECT</button></div>';
+        html += '<div id="cc-obs-log" class="cc-log"></div>';
+        html += '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:4px;line-height:1.5;">';
+        html += 'In OBS: <span style="color:var(--cyan);">Tools → WebSocket Server Settings</span><br/>';
+        html += 'Enable, port 4455, set or clear password.';
+        html += '</div>';
         html += '<div class="cc-divider"></div>';
         html += '<div class="cc-section-label">SCENES</div>';
         html += '<div id="cc-obs-scenes" class="cc-scenes"><div class="cc-empty">Connect to load scenes</div></div>';
@@ -556,10 +561,14 @@
         html += '<div id="cc-spotify-setup">';
         html += '<div class="cc-row"><input type="text" id="cc-spotify-clientid" placeholder="Spotify Client ID" class="cc-input" /></div>';
         html += '<div class="cc-row"><button id="cc-spotify-connect" class="cc-btn">CONNECT TO SPOTIFY</button></div>';
-        html += '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;line-height:1.5;">';
-        html += 'Register an app at <span style="color:var(--cyan);">developer.spotify.com</span><br/>';
-        html += 'Add this URL as redirect URI:<br/>';
-        html += '<span id="cc-spotify-redirect" style="color:var(--green);word-break:break-all;"></span>';
+        html += '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:8px;line-height:1.6;">';
+        html += '<span style="color:var(--cyan);">[1]</span> Create app at <span style="color:var(--cyan);">developer.spotify.com/dashboard</span><br/>';
+        html += '<span style="color:var(--cyan);">[2]</span> Add redirect URI <span style="color:var(--orange);">EXACTLY</span>:<br/>';
+        html += '<span id="cc-spotify-redirect" style="color:var(--green);word-break:break-all;display:block;padding:4px 6px;background:rgba(0,0,0,0.4);border:1px solid var(--border);margin:4px 0;"></span>';
+        html += '<span style="color:var(--cyan);">[3]</span> Spotify rejects HTTP except for <span style="color:var(--orange);">127.0.0.1</span>. If you see "redirect URIs are not valid", reach HCC via SSH tunnel:<br/>';
+        html += '<code style="color:var(--green);background:rgba(0,0,0,0.4);padding:2px 4px;display:block;margin:4px 0;font-size:0.65rem;">ssh -L 3080:localhost:3080 dietpi@10.40.40.2</code>';
+        html += 'Then open <span style="color:var(--cyan);">http://127.0.0.1:3080/</span> and connect.<br/>';
+        html += '<span style="color:var(--cyan);">[4]</span> After auth, tokens are stored on the server — you can access HCC from any URL afterwards.';
         html += '</div>';
         html += '</div>';
         // Player view (shown when authenticated)
@@ -663,6 +672,20 @@
         });
     }
 
+    function obsLog(msg, type) {
+        var logEl = document.getElementById('cc-obs-log');
+        if (!logEl) return;
+        var ts = new Date().toLocaleTimeString();
+        var color = type === 'err' ? 'var(--red)' : type === 'ok' ? 'var(--green)' : type === 'warn' ? 'var(--orange)' : 'var(--text-muted)';
+        var line = document.createElement('div');
+        line.style.cssText = 'font-size:0.65rem;color:' + color + ';line-height:1.4;';
+        line.textContent = '[' + ts + '] ' + msg;
+        logEl.appendChild(line);
+        // Keep only last 12 lines
+        while (logEl.children.length > 12) logEl.removeChild(logEl.firstChild);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
     function initOBSController() {
         var hostEl = document.getElementById('cc-obs-host');
         var passEl = document.getElementById('cc-obs-pass');
@@ -672,6 +695,7 @@
         var scenesEl = document.getElementById('cc-obs-scenes');
         var streamBtn = document.getElementById('cc-obs-stream');
         var recBtn = document.getElementById('cc-obs-record');
+        var statusInterval = null;
 
         // Restore saved settings
         try {
@@ -681,13 +705,29 @@
         } catch(e) {}
 
         connectBtn.addEventListener('click', function() {
-            var host = hostEl.value.trim();
+            var raw = hostEl.value.trim();
             var pass = passEl.value;
-            if (!host) return;
-            localStorage.setItem('hcc-obs', JSON.stringify({ host: host, pass: pass }));
+            if (!raw) { obsLog('Enter a host first', 'warn'); return; }
+
+            // Auto-prefix ws:// and default port :4455
+            var host = raw;
+            if (!/^wss?:\/\//.test(host)) host = 'ws://' + host;
+            if (!/:\d+/.test(host.replace(/^wss?:\/\//, ''))) host = host + ':4455';
+            obsLog('Connecting to ' + host, 'info');
+
+            localStorage.setItem('hcc-obs', JSON.stringify({ host: raw, pass: pass }));
+
+            // Close any existing connection
+            if (obsWs) {
+                try { obsWs.close(); } catch(e) {}
+                obsWs = null;
+            }
+            if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+
             try {
                 obsWs = new WebSocket(host);
             } catch(e) {
+                obsLog('Invalid URL: ' + e.message, 'err');
                 statusEl.textContent = 'INVALID URL';
                 statusEl.style.color = 'var(--red)';
                 return;
@@ -695,39 +735,77 @@
             statusEl.textContent = 'CONNECTING...';
             statusEl.style.color = 'var(--orange)';
 
-            obsWs.onopen = function() { statusEl.textContent = 'AUTH...'; };
-            obsWs.onerror = function() { statusEl.textContent = 'ERROR'; statusEl.style.color = 'var(--red)'; };
-            obsWs.onclose = function() { statusEl.textContent = 'DISCONNECTED'; statusEl.style.color = 'var(--text-muted)'; };
+            obsWs.onopen = function() {
+                obsLog('Socket open, waiting for Hello...', 'ok');
+                statusEl.textContent = 'WAIT HELLO';
+            };
+            obsWs.onerror = function(ev) {
+                obsLog('WebSocket error — host unreachable, port closed, or wrong URL', 'err');
+                statusEl.textContent = 'ERROR';
+                statusEl.style.color = 'var(--red)';
+            };
+            obsWs.onclose = function(ev) {
+                var reason = '';
+                if (ev.code === 4009) reason = ' (auth failed — wrong password)';
+                else if (ev.code === 4008) reason = ' (auth required but no password sent)';
+                else if (ev.code === 1006) reason = ' (abnormal close — usually unreachable)';
+                else if (ev.code === 1000) reason = ' (normal close)';
+                obsLog('Closed: code=' + ev.code + reason, ev.code === 1000 ? 'info' : 'err');
+                statusEl.textContent = 'DISCONNECTED';
+                statusEl.style.color = 'var(--text-muted)';
+                if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+            };
 
             obsWs.onmessage = async function(ev) {
-                var msg = JSON.parse(ev.data);
+                var msg;
+                try { msg = JSON.parse(ev.data); } catch(e) { obsLog('Bad JSON from server', 'err'); return; }
+
                 // Hello (op 0) → Identify (op 1)
                 if (msg.op === 0) {
-                    var auth = null;
-                    if (msg.d.authentication && pass) {
-                        // SHA256 challenge
-                        var encoder = new TextEncoder();
-                        var data1 = await crypto.subtle.digest('SHA-256', encoder.encode(pass + msg.d.authentication.salt));
-                        var b64a = btoa(String.fromCharCode.apply(null, new Uint8Array(data1)));
-                        var data2 = await crypto.subtle.digest('SHA-256', encoder.encode(b64a + msg.d.authentication.challenge));
-                        auth = btoa(String.fromCharCode.apply(null, new Uint8Array(data2)));
+                    obsLog('Hello received (rpcVersion ' + msg.d.rpcVersion + ')', 'info');
+                    var identifyData = { rpcVersion: 1, eventSubscriptions: 69 };
+                    if (msg.d.authentication) {
+                        if (!pass) {
+                            obsLog('Server requires password but none provided', 'err');
+                            statusEl.textContent = 'PASSWORD REQ';
+                            statusEl.style.color = 'var(--red)';
+                            obsWs.close();
+                            return;
+                        }
+                        try {
+                            var encoder = new TextEncoder();
+                            var data1 = await crypto.subtle.digest('SHA-256', encoder.encode(pass + msg.d.authentication.salt));
+                            var b64a = btoa(String.fromCharCode.apply(null, new Uint8Array(data1)));
+                            var data2 = await crypto.subtle.digest('SHA-256', encoder.encode(b64a + msg.d.authentication.challenge));
+                            identifyData.authentication = btoa(String.fromCharCode.apply(null, new Uint8Array(data2)));
+                            obsLog('Sending Identify with auth', 'info');
+                        } catch(e) {
+                            obsLog('Crypto error: ' + e.message, 'err');
+                            return;
+                        }
+                    } else {
+                        obsLog('No auth required, sending Identify', 'info');
                     }
-                    obsWs.send(JSON.stringify({ op: 1, d: { rpcVersion: 1, authentication: auth, eventSubscriptions: 33 } }));
+                    obsWs.send(JSON.stringify({ op: 1, d: identifyData }));
                 }
                 // Identified (op 2)
                 if (msg.op === 2) {
+                    obsLog('Identified — connected', 'ok');
                     statusEl.textContent = 'CONNECTED';
                     statusEl.style.color = 'var(--green)';
                     loadOBSScenes();
                     loadOBSStatus();
-                    setInterval(loadOBSStatus, 2000);
+                    statusInterval = setInterval(loadOBSStatus, 2000);
                 }
                 // Response (op 7)
                 if (msg.op === 7 && obsCallbacks[msg.d.requestId]) {
+                    if (msg.d.requestStatus && !msg.d.requestStatus.result) {
+                        obsLog('Request failed: ' + msg.d.requestStatus.comment, 'err');
+                    }
                     obsCallbacks[msg.d.requestId](msg.d.responseData);
                     delete obsCallbacks[msg.d.requestId];
                 }
-                // Event (op 5) — refresh scenes/status on changes
+                // Event (op 5)
                 if (msg.op === 5) {
                     if (msg.d.eventType === 'CurrentProgramSceneChanged') loadOBSScenes();
                     if (msg.d.eventType === 'StreamStateChanged' || msg.d.eventType === 'RecordStateChanged') loadOBSStatus();
@@ -736,8 +814,9 @@
         });
 
         disconnectBtn.addEventListener('click', function() {
-            if (obsWs) obsWs.close();
+            if (obsWs) { obsWs.close(); obsLog('Manually disconnected', 'info'); }
             obsWs = null;
+            if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
         });
 
         async function loadOBSScenes() {
@@ -779,129 +858,24 @@
         recBtn.addEventListener('click', function() { obsRequest('ToggleRecord'); });
     }
 
-    // ── SPOTIFY REMOTE CONTROLLER ──
-    var spState = { token: null, expiresAt: 0, refreshToken: null, clientId: null, pollTimer: null };
-
-    function spLoadState() {
-        try {
-            var s = JSON.parse(localStorage.getItem('hcc-spotify') || '{}');
-            spState.token = s.token || null;
-            spState.expiresAt = s.expiresAt || 0;
-            spState.refreshToken = s.refreshToken || null;
-            spState.clientId = s.clientId || null;
-        } catch(e) {}
-    }
-    function spSaveState() {
-        localStorage.setItem('hcc-spotify', JSON.stringify({
-            token: spState.token, expiresAt: spState.expiresAt,
-            refreshToken: spState.refreshToken, clientId: spState.clientId
-        }));
-    }
-
-    // PKCE helpers
-    function spRandomString(len) {
-        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        var s = '';
-        var arr = new Uint8Array(len);
-        crypto.getRandomValues(arr);
-        for (var i = 0; i < len; i++) s += chars[arr[i] % chars.length];
-        return s;
-    }
-    async function spSha256(plain) {
-        var data = new TextEncoder().encode(plain);
-        return await crypto.subtle.digest('SHA-256', data);
-    }
-    function spBase64Url(buf) {
-        var bytes = new Uint8Array(buf);
-        var str = '';
-        for (var i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
-        return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-
-    async function spStartAuth(clientId) {
-        var verifier = spRandomString(64);
-        var challenge = spBase64Url(await spSha256(verifier));
-        sessionStorage.setItem('hcc-spotify-verifier', verifier);
-        sessionStorage.setItem('hcc-spotify-clientid', clientId);
-        var redirectUri = window.location.origin + window.location.pathname;
-        var scope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
-        var authUrl = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
-            client_id: clientId,
-            response_type: 'code',
-            redirect_uri: redirectUri,
-            code_challenge_method: 'S256',
-            code_challenge: challenge,
-            scope: scope
-        }).toString();
-        window.location.href = authUrl;
-    }
-
-    async function spExchangeCode(code) {
-        var verifier = sessionStorage.getItem('hcc-spotify-verifier');
-        var clientId = sessionStorage.getItem('hcc-spotify-clientid');
-        if (!verifier || !clientId) return;
-        var redirectUri = window.location.origin + window.location.pathname;
-        try {
-            var res = await fetch('https://accounts.spotify.com/api/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    client_id: clientId,
-                    grant_type: 'authorization_code',
-                    code: code,
-                    redirect_uri: redirectUri,
-                    code_verifier: verifier
-                }).toString()
-            });
-            var data = await res.json();
-            if (data.access_token) {
-                spState.token = data.access_token;
-                spState.refreshToken = data.refresh_token;
-                spState.expiresAt = Date.now() + (data.expires_in * 1000);
-                spState.clientId = clientId;
-                spSaveState();
-                sessionStorage.removeItem('hcc-spotify-verifier');
-                sessionStorage.removeItem('hcc-spotify-clientid');
-                // Clean URL
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-        } catch(e) { console.error('[HCC] Spotify auth error', e); }
-    }
-
-    async function spRefreshToken() {
-        if (!spState.refreshToken || !spState.clientId) return false;
-        try {
-            var res = await fetch('https://accounts.spotify.com/api/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    client_id: spState.clientId,
-                    grant_type: 'refresh_token',
-                    refresh_token: spState.refreshToken
-                }).toString()
-            });
-            var data = await res.json();
-            if (data.access_token) {
-                spState.token = data.access_token;
-                spState.expiresAt = Date.now() + (data.expires_in * 1000);
-                if (data.refresh_token) spState.refreshToken = data.refresh_token;
-                spSaveState();
-                return true;
-            }
-        } catch(e) { console.error('[HCC] Spotify refresh error', e); }
-        return false;
-    }
+    // ── SPOTIFY REMOTE CONTROLLER (server-proxied) ──
+    var spState = { connected: false, clientId: null, pollTimer: null };
 
     async function spApi(method, path, body) {
-        if (!spState.token) return null;
-        if (Date.now() >= spState.expiresAt - 60000) await spRefreshToken();
+        // Strip leading / and call our backend proxy
+        var clean = path.replace(/^\//, '');
         try {
-            var opts = { method: method, headers: { 'Authorization': 'Bearer ' + spState.token } };
+            var opts = { method: method, headers: {} };
             if (body) {
                 opts.headers['Content-Type'] = 'application/json';
                 opts.body = JSON.stringify(body);
             }
-            var res = await fetch('https://api.spotify.com/v1' + path, opts);
+            var res = await fetch('/spotify/api/' + clean, opts);
+            if (res.status === 401) {
+                spState.connected = false;
+                spShowSetup();
+                return null;
+            }
             if (res.status === 204) return {};
             if (!res.ok) return null;
             return await res.json();
@@ -983,20 +957,20 @@
         });
     }
 
-    function initSpotifyEmbed() {
-        spLoadState();
-        // Show redirect URI hint
+    async function initSpotifyEmbed() {
+        // Show the proper redirect URI for the user to register in Spotify dashboard
         var redirEl = document.getElementById('cc-spotify-redirect');
-        if (redirEl) redirEl.textContent = window.location.origin + window.location.pathname;
+        if (redirEl) redirEl.textContent = window.location.origin + '/spotify/callback';
 
-        // Handle OAuth callback (code in URL)
-        var urlParams = new URLSearchParams(window.location.search);
-        var code = urlParams.get('code');
-        if (code) {
-            spExchangeCode(code).then(function() {
-                if (spState.token) { spShowPlayer(); spPoll(); spState.pollTimer = setInterval(spPoll, 3000); }
-            });
-        } else if (spState.token && spState.refreshToken) {
+        // Check backend status — does it have valid tokens already?
+        try {
+            var res = await fetch('/spotify/status');
+            var data = await res.json();
+            spState.connected = !!data.connected;
+            spState.clientId = data.clientId || null;
+        } catch(e) {}
+
+        if (spState.connected) {
             spShowPlayer();
             spPoll();
             spState.pollTimer = setInterval(spPoll, 3000);
@@ -1005,10 +979,18 @@
         // Setup view
         var clientIdInput = document.getElementById('cc-spotify-clientid');
         if (spState.clientId) clientIdInput.value = spState.clientId;
+        // Persist client ID locally for convenience
+        try {
+            var savedCid = localStorage.getItem('hcc-spotify-clientid');
+            if (savedCid && !clientIdInput.value) clientIdInput.value = savedCid;
+        } catch(e) {}
+
         document.getElementById('cc-spotify-connect').addEventListener('click', function() {
             var cid = clientIdInput.value.trim();
             if (!cid) return;
-            spStartAuth(cid);
+            try { localStorage.setItem('hcc-spotify-clientid', cid); } catch(e) {}
+            // Hand off to backend OAuth
+            window.location.href = '/spotify/login?client_id=' + encodeURIComponent(cid);
         });
 
         // Player controls
@@ -1065,11 +1047,11 @@
                 listEl.style.display = 'none';
             }
         });
-        // Logout
-        document.getElementById('cc-sp-logout').addEventListener('click', function() {
-            if (spState.pollTimer) clearInterval(spState.pollTimer);
-            spState = { token: null, expiresAt: 0, refreshToken: null, clientId: spState.clientId, pollTimer: null };
-            spSaveState();
+        // Logout — clear server-side tokens
+        document.getElementById('cc-sp-logout').addEventListener('click', async function() {
+            if (spState.pollTimer) { clearInterval(spState.pollTimer); spState.pollTimer = null; }
+            try { await fetch('/spotify/logout', { method: 'POST' }); } catch(e) {}
+            spState.connected = false;
             spShowSetup();
         });
     }
