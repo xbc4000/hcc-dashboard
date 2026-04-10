@@ -650,6 +650,7 @@
         html += '<button data-cec-pwr="on" class="cc-btn cec-pwr">POWER ON</button>';
         html += '<button data-cec-pwr="off" class="cc-btn cc-btn-warn cec-pwr">STANDBY</button>';
         html += '<button data-cec-key="display-information" class="cc-btn cec-key">INFO</button>';
+        html += '<button id="cc-spbr-cec-swap" class="cc-btn">SWAP ↕</button>';
         html += '</div>';
         // D-pad
         html += '<div class="cec-dpad">';
@@ -907,6 +908,11 @@
             var k = document.getElementById('cc-spbr-cec-rawkey').value.trim();
             if (!k) return;
             cecPost('/cec/remote/' + encodeURIComponent(k), 'raw:' + k);
+        });
+        // Swap toggle — flips CEC volume up/down mapping live for testing
+        document.getElementById('cc-spbr-cec-swap').addEventListener('click', function () {
+            cecPost('/cec/swap', 'swap toggle');
+            setTimeout(fetchStatus, 300);
         });
 
         refreshBtn.addEventListener('click', function () {
