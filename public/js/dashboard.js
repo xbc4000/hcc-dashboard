@@ -638,6 +638,17 @@
         html += '<div class="cc-section-label">NOW STREAMING (LOCAL)</div>';
         html += '<div id="cc-spbr-now" class="cc-empty">Bridge idle — start playing on this device from any Spotify client</div>';
         html += '<div class="cc-divider"></div>';
+        html += '<div class="cc-section-label">NAD CEC CONTROL <span id="cc-spbr-cec-status" style="color:var(--text-muted);font-weight:400;margin-left:8px;">checking...</span></div>';
+        html += '<div class="cc-row" style="gap:6px;">';
+        html += '<button id="cc-spbr-cec-down" class="cc-btn cc-btn-cec">VOL −</button>';
+        html += '<button id="cc-spbr-cec-mute" class="cc-btn cc-btn-cec">MUTE</button>';
+        html += '<button id="cc-spbr-cec-up" class="cc-btn cc-btn-cec">VOL +</button>';
+        html += '</div>';
+        html += '<div class="cc-row" style="gap:6px;">';
+        html += '<button id="cc-spbr-cec-poweron" class="cc-btn">POWER ON</button>';
+        html += '<button id="cc-spbr-cec-poweroff" class="cc-btn cc-btn-warn">STANDBY</button>';
+        html += '</div>';
+        html += '<div class="cc-divider"></div>';
         html += '<div class="cc-row">';
         html += '<input type="text" id="cc-spbr-url" placeholder="http://10.40.40.2:3081" class="cc-input" />';
         html += '</div>';
@@ -761,6 +772,17 @@
                         nowEl.innerHTML = '<div class="cc-empty" style="padding:8px 0;">Bridge idle — start playing on this device from any Spotify client</div>';
                     }
                 }
+                // CEC status
+                var cecStatusEl = document.getElementById('cc-spbr-cec-status');
+                if (cecStatusEl && d.cec) {
+                    if (d.cec.ready) {
+                        cecStatusEl.textContent = 'READY (LA' + d.cec.targetLA + ', ' + (d.cec.commandCount || 0) + ' cmds sent)';
+                        cecStatusEl.style.color = 'var(--green)';
+                    } else {
+                        cecStatusEl.textContent = 'NOT READY';
+                        cecStatusEl.style.color = 'var(--red)';
+                    }
+                }
                 return true;
             } catch (e) {
                 statusEl.textContent = 'UNREACHABLE';
@@ -804,6 +826,21 @@
             } catch (e) { spbrLog('Restart error: ' + e.message, 'err'); }
             setTimeout(function () { fetchStatus(); fetchLogs(); }, 2500);
         });
+
+        // ── CEC button handlers ──
+        async function cecPost(path, label) {
+            var url = urlEl.value.trim().replace(/\/$/, '');
+            try {
+                var res = await fetch(url + path, { method: 'POST', signal: AbortSignal.timeout(3000) });
+                if (res.ok) spbrLog('CEC ' + label + ' OK', 'ok');
+                else spbrLog('CEC ' + label + ' failed: HTTP ' + res.status, 'err');
+            } catch (e) { spbrLog('CEC ' + label + ' error: ' + e.message, 'err'); }
+        }
+        document.getElementById('cc-spbr-cec-up').addEventListener('click', function () { cecPost('/cec/vol/up', 'vol+'); });
+        document.getElementById('cc-spbr-cec-down').addEventListener('click', function () { cecPost('/cec/vol/down', 'vol−'); });
+        document.getElementById('cc-spbr-cec-mute').addEventListener('click', function () { cecPost('/cec/mute', 'mute'); });
+        document.getElementById('cc-spbr-cec-poweron').addEventListener('click', function () { cecPost('/cec/power/on', 'power on'); });
+        document.getElementById('cc-spbr-cec-poweroff').addEventListener('click', function () { cecPost('/cec/power/off', 'standby'); });
 
         refreshBtn.addEventListener('click', function () {
             fetchStatus();

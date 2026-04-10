@@ -1302,6 +1302,22 @@ body.hcc-edit-mode .hcc-panel {
 }
 .cc-btn-warn { border-color: var(--orange); color: var(--orange); }
 .cc-btn-warn:hover { background: rgba(255,102,0,0.1); box-shadow: 0 0 12px rgba(255,102,0,0.3); }
+.cc-btn-cec {
+    border-color: #1DB954;
+    color: #1DB954;
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 12px 14px;
+    letter-spacing: 3px;
+}
+.cc-btn-cec:hover {
+    background: rgba(29,185,84,0.1);
+    box-shadow: 0 0 14px rgba(29,185,84,0.3);
+}
+.cc-btn-cec:active {
+    background: rgba(29,185,84,0.2);
+    transform: scale(0.97);
+}
 .cc-btn-action { flex: 1; }
 .cc-btn-link { width: 100%; }
 
