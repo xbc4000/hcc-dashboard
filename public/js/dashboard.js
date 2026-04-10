@@ -625,6 +625,84 @@
         { id: 'monitor',  icon: 'MO', label: 'MONITOR',     color: '#FF00B2' }
     ];
 
+    var currentPage = 'home';
+    var homeLayoutSaved = null;
+
+    // Dedicated page layouts: panels get resized for full-page view
+    var PAGE_LAYOUTS = {
+        pihole:   [{ id: 'pihole', w: 12, h: 10 }],
+        servers:  [{ id: 'servers', w: 12, h: 10 }],
+        firewall: [{ id: 'firewall', w: 6, h: 8 }, { id: 'netwatch', w: 6, h: 8 }],
+        network:  [{ id: 'bandwidth', w: 6, h: 6 }, { id: 'dhcp', w: 6, h: 6 }],
+        router:   [{ id: 'router', w: 5, h: 6 }, { id: 'logs', w: 7, h: 6 }],
+        monitor:  [{ id: 'overview', w: 4, h: 5 }, { id: 'targets', w: 4, h: 5 }, { id: 'netwatch', w: 4, h: 5 }]
+    };
+
+    function switchPage(pageId) {
+        if (pageId === currentPage) return;
+
+        // Save HOME layout before leaving
+        if (currentPage === 'home' && hccGrid) {
+            homeLayoutSaved = [];
+            hccGrid.getGridItems().forEach(function(el) {
+                homeLayoutSaved.push({
+                    id: el.getAttribute('gs-id'),
+                    x: parseInt(el.getAttribute('gs-x')),
+                    y: parseInt(el.getAttribute('gs-y')),
+                    w: parseInt(el.getAttribute('gs-w')),
+                    h: parseInt(el.getAttribute('gs-h'))
+                });
+            });
+        }
+
+        currentPage = pageId;
+
+        // Show/hide panels based on data-pages
+        var allItems = document.querySelectorAll('.grid-stack-item');
+        if (hccGrid) hccGrid.batchUpdate(true);
+
+        allItems.forEach(function(el) {
+            var pages = (el.dataset.pages || 'home').split(',');
+            if (pages.indexOf(pageId) !== -1) {
+                el.classList.remove('hcc-page-hidden');
+            } else {
+                el.classList.add('hcc-page-hidden');
+            }
+        });
+
+        // Resize panels for dedicated pages
+        if (pageId !== 'home' && PAGE_LAYOUTS[pageId] && hccGrid) {
+            PAGE_LAYOUTS[pageId].forEach(function(layout) {
+                var el = document.querySelector('[gs-id="' + layout.id + '"]');
+                if (el) hccGrid.update(el, { w: layout.w, h: layout.h, x: undefined, y: undefined });
+            });
+        }
+
+        // Restore HOME layout
+        if (pageId === 'home' && homeLayoutSaved && hccGrid) {
+            homeLayoutSaved.forEach(function(item) {
+                var el = document.querySelector('[gs-id="' + item.id + '"]');
+                if (el) hccGrid.update(el, { x: item.x, y: item.y, w: item.w, h: item.h });
+            });
+        }
+
+        if (hccGrid) {
+            hccGrid.batchUpdate(false);
+            hccGrid.compact();
+        }
+
+        // Update sidebar active state
+        document.querySelectorAll('.hcc-sb-item').forEach(function(li) {
+            li.classList.toggle('active', li.dataset.page === pageId);
+        });
+
+        // Re-apply effects after layout change
+        setTimeout(function() {
+            if (typeof window._hccApplyArcs === 'function') window._hccApplyArcs();
+            if (typeof window._hccApplyRings === 'function') window._hccApplyRings();
+        }, 200);
+    }
+
     function buildSidebar() {
         var nav = document.getElementById('hcc-sb-nav');
         if (!nav) return;
@@ -712,6 +790,13 @@
                 iconWrap.style.boxShadow = '0 0 10px ' + accent + '35,inset 0 0 8px ' + accent + '12';
                 if (!isActive) bar.style.width = '0%';
             });
+
+            // Click to switch page
+            (function(pageId) {
+                panel.addEventListener('click', function() {
+                    switchPage(pageId);
+                });
+            })(item.id);
 
             li.appendChild(panel);
             nav.appendChild(li);

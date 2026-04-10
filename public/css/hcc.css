@@ -551,6 +551,11 @@ body {
     padding: 58px 8px 40px 62px;
 }
 
+/* Page-hidden panels */
+.grid-stack-item.hcc-page-hidden {
+    display: none !important;
+}
+
 /* Gridstack panels fill their cells */
 .grid-stack-item-content {
     height: 100% !important;
