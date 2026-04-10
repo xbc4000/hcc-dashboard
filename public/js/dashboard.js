@@ -466,8 +466,19 @@
     function updateTicker(pihole) {
         var content = document.getElementById('ticker-content');
         if (!content || !pihole) return;
-        // Use top blocked from pihole exporter data if available
-        var text = 'QUERIES: ' + fmtNum(pihole.totalQueries) + '  ◆  BLOCKED: ' + fmtNum(pihole.blockedQueries) + '  ◆  BLOCK RATE: ' + (pihole.percentBlocked||0).toFixed(1) + '%  ◆  GRAVITY: ' + fmtNum(pihole.gravitySize) + ' DOMAINS  ◆  CLIENTS: ' + (pihole.clients||0);
+        var parts = [];
+        // Lead with blocked domains if we have them
+        if (pihole.topBlocked && pihole.topBlocked.length > 0) {
+            pihole.topBlocked.forEach(function(d) {
+                parts.push(d.domain + ' (' + fmtNum(d.count) + ')');
+            });
+        }
+        // Append summary stats at the end
+        parts.push('QUERIES: ' + fmtNum(pihole.totalQueries));
+        parts.push('BLOCKED: ' + fmtNum(pihole.blockedQueries));
+        parts.push('BLOCK RATE: ' + (pihole.percentBlocked||0).toFixed(1) + '%');
+        parts.push('GRAVITY: ' + fmtNum(pihole.gravitySize));
+        var text = parts.join('  ◆  ');
         content.textContent = text + '  ◆  ' + text;
     }
 
