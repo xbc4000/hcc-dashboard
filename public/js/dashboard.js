@@ -889,9 +889,18 @@
         setTimeout(function() {
             var tc = document.getElementById('hcc-sb-topo');
             if (!tc) return;
-            tc.width = tc.offsetWidth;
-            tc.height = 140;
             var tCtx = tc.getContext('2d');
+            var lastTW = 0;
+
+            function topoResize() {
+                var w = tc.parentElement.offsetWidth - 22;
+                if (w < 10) w = 200;
+                if (w === lastTW) return;
+                tc.width = w;
+                tc.height = 140;
+                lastTW = w;
+            }
+            topoResize();
             var nodes = [
                 { x: 0.5, y: 0.15, label: 'WAN', color: '#00d4ff', r: 5 },
                 { x: 0.5, y: 0.38, label: 'RB3011', color: '#FFD700', r: 6 },
@@ -907,6 +916,7 @@
             var links = [[0,1],[1,2],[1,3],[1,4],[1,5],[2,6],[3,7],[4,8],[5,9]];
 
             function drawTopo() {
+                topoResize();
                 var w = tc.width, h = tc.height;
                 tCtx.clearRect(0, 0, w, h);
                 // Draw links
