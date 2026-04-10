@@ -57,6 +57,7 @@
             updateTicker(d.pihole);
             updateHeaderLive(d.pihole);
             if (typeof window._hccUpdateSidebar === 'function') window._hccUpdateSidebar(d.pihole, d.threat, d.services);
+            if (typeof window._hccUpdateNetPopup === 'function') window._hccUpdateNetPopup(d.pihole);
             doAudio(d.pihole, d.services);
             flashPanels();
             // Re-apply effects that get destroyed by innerHTML re-renders
@@ -703,6 +704,298 @@
         }, 200);
     }
 
+    function buildNetworkPopup() {
+        if (document.getElementById('hcc-net-popout')) return;
+
+        // Add styles
+        if (!document.getElementById('hcc-net-style')) {
+            var ns = document.createElement('style');
+            ns.id = 'hcc-net-style';
+            ns.textContent = [
+                '@keyframes hccNetNodePulse{0%,100%{opacity:0.7;box-shadow:0 0 4px currentColor}50%{opacity:1;box-shadow:0 0 8px currentColor,0 0 16px currentColor}}',
+                '@keyframes hccNetHdrScan{0%{left:-30%}100%{left:100%}}',
+                '#hcc-net-popout::-webkit-scrollbar{width:4px}',
+                '#hcc-net-popout::-webkit-scrollbar-track{background:transparent}',
+                '#hcc-net-popout::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#006699,#990066);}'
+            ].join('\n');
+            document.head.appendChild(ns);
+        }
+
+        var panel = document.createElement('div');
+        panel.id = 'hcc-net-popout';
+        panel.style.cssText = 'position:fixed;top:50%;left:-1200px;transform:translateY(-50%);width:920px;max-width:calc(100vw - 100px);height:auto;max-height:calc(100vh - 80px);background:#030610;border:1px solid rgba(0,183,255,0.35);font-family:var(--font-mono);z-index:99999;padding:0;overflow-y:auto;overflow-x:hidden;transition:left 0.4s cubic-bezier(0.4,0,0.2,1),box-shadow 0.4s ease;scrollbar-width:thin;scrollbar-color:rgba(0,183,255,0.3) transparent;clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px));';
+
+        // ── HEADER ──
+        var hdr = document.createElement('div');
+        hdr.style.cssText = 'padding:20px 28px 16px;border-bottom:2px solid rgba(0,183,255,0.2);background:linear-gradient(90deg,rgba(0,183,255,0.08),#030610);position:relative;';
+        var title = document.createElement('div');
+        title.style.cssText = 'font-size:16px;letter-spacing:6px;color:#00d4ff;text-transform:uppercase;text-shadow:0 0 16px rgba(0,183,255,0.7);';
+        title.textContent = 'NETWORK TOPOLOGY // HOMELAB';
+        hdr.appendChild(title);
+        var subtitle = document.createElement('div');
+        subtitle.style.cssText = 'font-size:11px;letter-spacing:3px;color:#8899bb;margin-top:6px;';
+        subtitle.textContent = 'RB3011 CORE + 6 VLANS + CONTAINER';
+        hdr.appendChild(subtitle);
+        var hdrScan = document.createElement('div');
+        hdrScan.style.cssText = 'position:absolute;bottom:0;left:0;width:30%;height:1px;background:linear-gradient(90deg,#00B7FF,transparent);animation:hccNetHdrScan 3s linear infinite;';
+        hdr.appendChild(hdrScan);
+        panel.appendChild(hdr);
+
+        // ── NODES ──
+        var nodesContainer = document.createElement('div');
+        nodesContainer.style.cssText = 'padding:18px 24px;';
+        var nodes = [
+            { name: 'RB3011-GW', ip: '10.10.10.1', color: '#00d4ff', icon: '◈', role: 'CORE ROUTER / CAPSMAN / CONTAINER HOST', ports: 'ether1-WAN  ether2-10  sfp1', type: 'MIKROTIK ROUTEROS 7.x' },
+            { name: 'PER730XD', ip: '10.10.10.2', color: '#00B7FF', icon: '▣', role: 'WORKSTATION — FEDORA, DAILY DRIVER', ports: 'VLAN10  bond0 (eno3+eno4)', type: 'DELL POWEREDGE R730XD', vlan: '10' },
+            { name: 'PER630', ip: '10.20.20.2', color: '#FF00B2', icon: '▣', role: 'UBUNTU SERVER / AMP GAME PANEL', ports: 'VLAN20  NIC1 mgmt + NIC2 AMP', type: 'DELL POWEREDGE R630', vlan: '20' },
+            { name: 'iDRAC x2', ip: '10.30.30.10-11', color: '#ff6600', icon: '◇', role: 'OUT-OF-BAND MANAGEMENT', ports: 'VLAN30  ether6 + ether7', type: 'DELL iDRAC 8', vlan: '30' },
+            { name: 'Raspberry Pi', ip: '10.40.40.2', color: '#00ff88', icon: '●', role: 'MONITORING — GRAFANA / PROMETHEUS / EXPORTERS', ports: 'VLAN40  ether8', type: 'RPI4 / DIETPI', vlan: '40' },
+            { name: 'WiFi Mesh', ip: '10.60.60.200-201', color: '#B986F2', icon: '◠', role: 'CAPSMAN APs — mAP2nD + wAP2nD', ports: 'VLAN60  ether10 → chain', type: '2.4GHz CH1/CH11', vlan: '60' },
+            { name: 'Pi-hole DNS', ip: '172.17.0.2', color: '#00d4ff', icon: '◉', role: 'DNS SINKHOLE + AD BLOCKING', ports: 'CONTAINER  veth 172.17.0.0/24', type: 'PI-HOLE v6 (CONTAINER)' }
+        ];
+
+        nodes.forEach(function(node, idx) {
+            var card = document.createElement('div');
+            card.style.cssText = 'position:relative;padding:14px 18px;margin:10px 0;border:1px solid ' + node.color + '30;background:linear-gradient(135deg,#050a14,' + node.color + '0a);transition:all 0.25s ease;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));';
+
+            var topRow = document.createElement('div');
+            topRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:6px;';
+            var dot = document.createElement('span');
+            dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:' + node.color + ';box-shadow:0 0 10px ' + node.color + ',0 0 24px ' + node.color + '50;flex-shrink:0;animation:hccNetNodePulse ' + (2 + idx * 0.3) + 's ease-in-out infinite;';
+            topRow.appendChild(dot);
+            var icon = document.createElement('span');
+            icon.style.cssText = 'font-size:20px;color:' + node.color + ';text-shadow:0 0 12px ' + node.color + '60;';
+            icon.textContent = node.icon;
+            topRow.appendChild(icon);
+            var nameEl = document.createElement('span');
+            nameEl.style.cssText = 'font-size:15px;font-weight:700;color:' + node.color + ';letter-spacing:2px;text-shadow:0 0 12px ' + node.color + '50;flex:1;';
+            nameEl.textContent = node.name;
+            topRow.appendChild(nameEl);
+            var ipBadge = document.createElement('span');
+            ipBadge.style.cssText = 'font-size:12px;color:#bbccee;background:#0a1020;border:1px solid ' + node.color + '35;padding:4px 12px;letter-spacing:1px;';
+            ipBadge.textContent = node.ip;
+            topRow.appendChild(ipBadge);
+            card.appendChild(topRow);
+
+            [{ l: 'TYPE', v: node.type }, { l: 'ROLE', v: node.role }, { l: 'PORT', v: node.ports }].forEach(function(d) {
+                var row = document.createElement('div');
+                row.style.cssText = 'display:flex;gap:12px;padding:2px 0 2px 40px;font-size:11px;';
+                row.innerHTML = '<span style="color:#8899bb;width:40px;flex-shrink:0;letter-spacing:1.5px;">' + d.l + '</span><span style="color:#aabbdd;letter-spacing:0.5px;">' + d.v + '</span>';
+                card.appendChild(row);
+            });
+
+            if (node.vlan) {
+                var vt = document.createElement('div');
+                vt.style.cssText = 'position:absolute;top:8px;right:10px;font-size:11px;color:' + node.color + 'aa;letter-spacing:2px;text-shadow:0 0 8px ' + node.color + '40;';
+                vt.textContent = 'V' + node.vlan;
+                card.appendChild(vt);
+            }
+
+            (function(c, n) {
+                c.addEventListener('mouseenter', function() {
+                    c.style.borderColor = n.color + '50';
+                    c.style.background = 'linear-gradient(135deg,#060c1a,' + n.color + '12)';
+                    c.style.boxShadow = '0 0 20px ' + n.color + '18, inset 0 0 30px ' + n.color + '06';
+                });
+                c.addEventListener('mouseleave', function() {
+                    c.style.borderColor = n.color + '30';
+                    c.style.background = 'linear-gradient(135deg,#050a14,' + n.color + '0a)';
+                    c.style.boxShadow = 'none';
+                });
+            })(card, node);
+
+            nodesContainer.appendChild(card);
+
+            if (idx < nodes.length - 1) {
+                var connLine = document.createElement('div');
+                connLine.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0 2px 20px;';
+                connLine.innerHTML = '<div style="width:1px;height:12px;background:linear-gradient(180deg,' + node.color + '40,' + nodes[idx+1].color + '40);"></div><div style="width:3px;height:3px;border-radius:50%;background:rgba(0,183,255,0.3);margin-left:-2px;"></div>';
+                nodesContainer.appendChild(connLine);
+            }
+        });
+        panel.appendChild(nodesContainer);
+
+        // ── INFRASTRUCTURE LAYOUT (ASCII diagram) ──
+        var diagSection = document.createElement('div');
+        diagSection.style.cssText = 'padding:12px 24px;border-top:1px solid rgba(0,183,255,0.1);border-bottom:1px solid rgba(0,183,255,0.1);background:linear-gradient(180deg,#020408,#040810);position:relative;';
+        var diagHdr = document.createElement('div');
+        diagHdr.style.cssText = 'font-size:10px;letter-spacing:4px;color:#0088bb;text-transform:uppercase;margin-bottom:10px;text-shadow:0 0 8px rgba(0,183,255,0.3);';
+        diagHdr.textContent = '// INFRASTRUCTURE LAYOUT';
+        diagSection.appendChild(diagHdr);
+
+        var diagBox = document.createElement('pre');
+        diagBox.style.cssText = 'margin:0;padding:16px;background:#020408;border:1px solid rgba(0,183,255,0.15);font-size:13px;line-height:1.35;color:#0088bb;overflow-x:auto;white-space:pre;text-shadow:0 0 4px rgba(0,183,255,0.3);';
+        var cy='#00d4ff', dm='#0088bb', bl='#00B7FF', mg='#FF00B2', gn='#00ff88', or='#ff6600', pu='#B986F2', gy='#8899bb';
+        diagBox.innerHTML = [
+            '<span style="color:'+cy+'">              ┌──────────────────────────────┐</span>',
+            '<span style="color:'+cy+'">              │</span>  <span style="color:'+or+'">☁  ISP PPPoE (WAN) ether1</span>   <span style="color:'+cy+'">│</span>',
+            '<span style="color:'+cy+'">              └──────────────┬───────────────┘</span>',
+            '<span style="color:'+cy+'">                             │</span>',
+            '<span style="color:'+cy+'">              ┌──────────────┴───────────────┐</span>',
+            '<span style="color:'+cy+';text-shadow:0 0 8px rgba(0,183,255,0.5)">              │  ◆ RB3011-GW    10.10.10.1   │</span>',
+            '<span style="color:'+cy+'">              │    RouterOS 7.x / Pi-hole    │</span>',
+            '<span style="color:'+cy+'">              └─┬────┬─────┬─────┬─────┬───┬─┘</span>',
+            '<span style="color:'+dm+'">        ┌───────┘    │     │     │     │   └────────┐</span>',
+            '<span style="color:'+dm+'">        │            │     │     │     │            │</span>',
+            '<span style="color:'+bl+'">  ┌─────┴──────┐ ┌───┴────┐ │ ┌───┴────┐ ┌────┴───┐ │</span>',
+            '<span style="color:'+bl+'">  │</span><span style="color:'+bl+'"> PER730XD   </span><span style="color:'+bl+'">│ │</span><span style="color:'+mg+'"> PER630 </span><span style="color:'+bl+'">│ │ │</span><span style="color:'+gn+'"> RPi 4  </span><span style="color:'+bl+'">│ │</span><span style="color:'+or+'"> iDRAC  </span><span style="color:'+bl+'">│ │</span>',
+            '<span style="color:'+bl+'">  │</span><span style="color:'+gy+'"> VLAN 10    </span><span style="color:'+bl+'">│ │</span><span style="color:'+gy+'"> VLAN20 </span><span style="color:'+bl+'">│ │ │</span><span style="color:'+gy+'"> VLAN40 </span><span style="color:'+bl+'">│ │</span><span style="color:'+gy+'"> VLAN30 </span><span style="color:'+bl+'">│ │</span>',
+            '<span style="color:'+bl+'">  │</span><span style="color:'+gy+'"> 10.10.10.2 </span><span style="color:'+bl+'">│ │</span><span style="color:'+gy+'"> .20.20 </span><span style="color:'+bl+'">│ │ │</span><span style="color:'+gy+'"> .40.40 </span><span style="color:'+bl+'">│ │</span><span style="color:'+gy+'"> .30.1x </span><span style="color:'+bl+'">│ │</span>',
+            '<span style="color:'+bl+'">  └────────────┘ └────────┘ │ └────────┘ └────────┘ │</span>',
+            '<span style="color:'+dm+'">                            │                       │</span>',
+            '<span style="color:'+pu+'">                    ┌───────┴──────┐       ┌────────┴──────┐</span>',
+            '<span style="color:'+pu+'">                    │</span><span style="color:'+pu+'"> WiFi Mesh    </span><span style="color:'+pu+'">│       │</span><span style="color:'+cy+'"> Pi-hole DNS  </span><span style="color:'+pu+'">│</span>',
+            '<span style="color:'+pu+'">                    │</span><span style="color:'+gy+'"> VLAN 60      </span><span style="color:'+pu+'">│       │</span><span style="color:'+gy+'"> 172.17.0.2   </span><span style="color:'+pu+'">│</span>',
+            '<span style="color:'+pu+'">                    │</span><span style="color:'+gy+'"> 10.60.60.0/24</span><span style="color:'+pu+'">│       │</span><span style="color:'+gy+'"> Container    </span><span style="color:'+pu+'">│</span>',
+            '<span style="color:'+pu+'">                    │</span><span style="color:'+gy+'"> mAP + wAP    </span><span style="color:'+pu+'">│       │</span><span style="color:'+gy+'"> DNS Sinkhole </span><span style="color:'+pu+'">│</span>',
+            '<span style="color:'+pu+'">                    └──────────────┘       └───────────────┘</span>'
+        ].join('\n');
+        diagSection.appendChild(diagBox);
+        var diagScan = document.createElement('div');
+        diagScan.style.cssText = 'position:absolute;bottom:12px;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,rgba(0,183,255,0.3),transparent);animation:hccNetHdrScan 4s linear infinite;';
+        diagSection.appendChild(diagScan);
+        panel.appendChild(diagSection);
+
+        // ── 3 STAT CARDS ──
+        var statsSection = document.createElement('div');
+        statsSection.style.cssText = 'padding:14px 24px;background:#030610;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;';
+        var jcards = [
+            { title: 'DNS FILTERING', icon: '⚠', color: '#ff6600', lines: [
+                { id: 'jn-total', label: 'TOTAL QUERIES', value: '---' },
+                { id: 'jn-blocked', label: 'BLOCKED', value: '---' },
+                { id: 'jn-pct', label: 'BLOCK RATE', value: '---' },
+                { id: 'jn-gravity', label: 'GRAVITY LIST', value: '---' }
+            ]},
+            { title: 'DATA FLOW', icon: '⇆', color: '#00d4ff', lines: [
+                { id: 'jn-dns-status', label: 'DNS ENGINE', value: '---' },
+                { id: 'jn-top-blocked', label: 'TOP BLOCKED', value: '---' },
+                { id: 'jn-top-client', label: 'TOP CLIENT', value: '---' },
+                { id: 'jn-unique', label: 'UNIQUE DOMAINS', value: '---' }
+            ]},
+            { title: 'INFRASTRUCTURE', icon: '⚙', color: '#00ff88', lines: [
+                { id: 'jn-ftl', label: 'FTL ENGINE', value: '---' },
+                { id: 'jn-nodes', label: 'NODES', value: '7 ONLINE' },
+                { id: 'jn-vlans', label: 'VLANs', value: '6 ACTIVE' },
+                { id: 'jn-container', label: 'CONTAINER', value: 'RUNNING' }
+            ]}
+        ];
+        jcards.forEach(function(jc) {
+            var jcard = document.createElement('div');
+            jcard.style.cssText = 'border:1px solid ' + jc.color + '20;background:linear-gradient(180deg,#050a14,' + jc.color + '08);padding:12px;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));transition:all 0.2s ease;';
+            var jh = document.createElement('div');
+            jh.style.cssText = 'font-size:10px;letter-spacing:3px;color:' + jc.color + ';margin-bottom:8px;display:flex;align-items:center;gap:6px;text-shadow:0 0 8px ' + jc.color + '50;';
+            jh.textContent = jc.icon + ' ' + jc.title;
+            jcard.appendChild(jh);
+            jc.lines.forEach(function(line) {
+                var jl = document.createElement('div');
+                jl.style.cssText = 'font-size:10px;color:#8899bb;padding:2px 0;letter-spacing:1px;display:flex;justify-content:space-between;';
+                jl.innerHTML = '<span style="color:#6688aa;">' + line.label + '</span> <span id="' + line.id + '" style="color:' + jc.color + 'cc;font-weight:700;">' + line.value + '</span>';
+                jcard.appendChild(jl);
+            });
+            statsSection.appendChild(jcard);
+        });
+        panel.appendChild(statsSection);
+
+        // ── FOOTER ──
+        var footer = document.createElement('div');
+        footer.style.cssText = 'padding:16px 24px 18px;border-top:2px solid rgba(0,183,255,0.15);background:#040810;';
+        var fGrid = document.createElement('div');
+        fGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;';
+        [
+            { label: 'DNS FILTER', value: 'CHECKING...', color: '#00d4ff', id: 'hcc-net-fdns' },
+            { label: 'TOTAL QUERIES', value: '---', color: '#00B7FF', id: 'hcc-net-fqry' },
+            { label: 'BLOCKED', value: '---', color: '#ff6600', id: 'hcc-net-fblk' },
+            { label: 'NODES', value: '7 / 7', color: '#B986F2', id: '' },
+            { label: 'WAN', value: 'PPPoE UP', color: '#00ff88', id: '' },
+            { label: 'VLANs', value: '6 ACTIVE', color: '#B986F2', id: '' }
+        ].forEach(function(st) {
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;padding:3px 0;';
+            row.innerHTML = '<span style="color:#8899bb;letter-spacing:2px;">' + st.label + '</span><span ' + (st.id?'id="'+st.id+'"':'') + ' style="color:' + st.color + ';text-shadow:0 0 12px ' + st.color + '50;letter-spacing:2px;font-weight:700;">' + st.value + '</span>';
+            fGrid.appendChild(row);
+        });
+        footer.appendChild(fGrid);
+        var timerDiv = document.createElement('div');
+        timerDiv.style.cssText = 'text-align:center;margin-top:12px;font-size:12px;letter-spacing:5px;color:#00B7FF;text-shadow:0 0 12px rgba(0,183,255,0.5);border-top:1px solid rgba(0,183,255,0.1);padding-top:10px;';
+        timerDiv.id = 'hcc-net-session';
+        timerDiv.textContent = 'SESSION 00:00:00';
+        footer.appendChild(timerDiv);
+        panel.appendChild(footer);
+
+        // Corner accents
+        ['top:6px;left:6px;border-top:2px solid rgba(0,183,255,0.5);border-left:2px solid rgba(0,183,255,0.5);',
+         'top:6px;right:6px;border-top:2px solid rgba(0,183,255,0.3);border-right:2px solid rgba(0,183,255,0.3);',
+         'bottom:6px;left:6px;border-bottom:2px solid rgba(255,0,178,0.3);border-left:2px solid rgba(255,0,178,0.3);',
+         'bottom:6px;right:6px;border-bottom:2px solid rgba(255,0,178,0.5);border-right:2px solid rgba(255,0,178,0.5);'
+        ].forEach(function(pos) {
+            var c = document.createElement('div');
+            c.style.cssText = 'position:absolute;width:14px;height:14px;pointer-events:none;z-index:2;' + pos;
+            panel.appendChild(c);
+        });
+
+        document.body.appendChild(panel);
+
+        // Toggle logic
+        var panelOpen = false;
+        window._hccToggleNetPopup = function() {
+            panelOpen = !panelOpen;
+            if (panelOpen) {
+                panel.style.left = 'calc(50vw - 460px + 39px)';
+                panel.style.boxShadow = '0 0 60px rgba(0,183,255,0.2), 0 0 120px rgba(0,183,255,0.08), 0 20px 80px rgba(0,0,0,0.8)';
+            } else {
+                panel.style.left = '-1200px';
+                panel.style.boxShadow = 'none';
+            }
+        };
+        document.addEventListener('click', function(e) {
+            var trig = document.getElementById('hcc-net-trigger');
+            if (panelOpen && !panel.contains(e.target) && trig && !trig.contains(e.target)) {
+                panelOpen = false;
+                panel.style.left = '-1200px';
+                panel.style.boxShadow = 'none';
+            }
+        });
+
+        // Session timer
+        var startTime = Date.now();
+        setInterval(function() {
+            var el = document.getElementById('hcc-net-session');
+            if (!el) return;
+            var elapsed = Math.floor((Date.now() - startTime) / 1000);
+            var h = Math.floor(elapsed / 3600);
+            var m = Math.floor((elapsed % 3600) / 60);
+            var sec = elapsed % 60;
+            el.textContent = 'SESSION ' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+        }, 1000);
+    }
+
+    // Update network popup with live data
+    window._hccUpdateNetPopup = function(pihole) {
+        if (!pihole) return;
+        var setText = function(id, val) { var e = document.getElementById(id); if (e) e.textContent = val; };
+        setText('jn-total', fmtNum(pihole.totalQueries));
+        setText('jn-blocked', fmtNum(pihole.blockedQueries));
+        setText('jn-pct', (pihole.percentBlocked||0).toFixed(1) + '%');
+        setText('jn-gravity', fmtNum(pihole.gravitySize));
+        setText('jn-dns-status', pihole.status === 'enabled' ? 'ACTIVE' : 'DISABLED');
+        setText('jn-ftl', 'ONLINE');
+        setText('jn-unique', fmtNum(pihole.uniqueDomains || 0));
+        if (pihole.topBlocked && pihole.topBlocked[0]) {
+            var d = pihole.topBlocked[0].domain;
+            if (d.length > 22) d = d.substring(0, 20) + '..';
+            setText('jn-top-blocked', d);
+        }
+        if (pihole.topSources && pihole.topSources[0]) {
+            var c = pihole.topSources[0].client;
+            if (c.length > 22) c = c.substring(0, 20) + '..';
+            setText('jn-top-client', c);
+        }
+        // Footer
+        setText('hcc-net-fdns', pihole.status === 'enabled' ? 'ACTIVE' : 'DISABLED');
+        setText('hcc-net-fqry', fmtNum(pihole.totalQueries));
+        setText('hcc-net-fblk', fmtNum(pihole.blockedQueries));
+    };
+
     function buildSidebar() {
         var nav = document.getElementById('hcc-sb-nav');
         if (!nav) return;
@@ -872,96 +1165,41 @@
             }
         };
 
-        // ── NETWORK TOPOLOGY MINI-PANEL ──
-        var topoWidget = document.createElement('div');
-        topoWidget.className = 'hcc-sb-widget';
-        topoWidget.style.cssText = widgetCSS + 'position:relative;overflow:hidden;';
-        topoWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#B986F2;font-size:10px;">◎</span> NETWORK MAP</div>';
+        // ── NETWORK MAP TRIGGER (opens popup) ──
+        var netTrigger = document.createElement('div');
+        netTrigger.id = 'hcc-net-trigger';
+        netTrigger.className = 'hcc-sb-widget';
+        netTrigger.style.cssText = 'position:relative;margin:14px 6px 6px;padding:10px 8px;border:1px solid rgba(0,183,255,0.2);background:linear-gradient(180deg,rgba(0,183,255,0.04),rgba(0,0,0,0.4));font-family:var(--font-mono);z-index:9999;cursor:pointer;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));transition:all 0.2s ease;';
+        netTrigger.innerHTML = '<div style="font-size:9px;letter-spacing:3px;color:#00B7FF;text-transform:uppercase;text-shadow:0 0 10px rgba(0,183,255,0.5);display:flex;align-items:center;gap:6px;"><span style="font-size:12px;">◎</span> NETWORK MAP</div>';
 
-        // Topology canvas
-        var topoCanvas = document.createElement('canvas');
-        topoCanvas.id = 'hcc-sb-topo';
-        topoCanvas.style.cssText = 'width:100%;height:140px;display:block;';
-        topoWidget.appendChild(topoCanvas);
-        sidebar.appendChild(topoWidget);
+        // Mini status dots row
+        var miniDots = document.createElement('div');
+        miniDots.style.cssText = 'display:flex;gap:4px;margin-top:6px;padding-left:18px;';
+        ['#00d4ff','#00B7FF','#FF00B2','#ff6600','#00ff88','#B986F2','#00d4ff'].forEach(function(c, di) {
+            var d = document.createElement('span');
+            d.style.cssText = 'width:4px;height:4px;border-radius:50%;background:' + c + ';box-shadow:0 0 4px ' + c + ';animation:hccNetNodePulse ' + (2 + di * 0.4) + 's ease-in-out infinite;';
+            miniDots.appendChild(d);
+        });
+        netTrigger.appendChild(miniDots);
 
-        // Draw topology nodes
-        setTimeout(function() {
-            var tc = document.getElementById('hcc-sb-topo');
-            if (!tc) return;
-            var tCtx = tc.getContext('2d');
-            var lastTW = 0;
+        // Corner marks
+        var ntc1 = document.createElement('div');
+        ntc1.style.cssText = 'position:absolute;top:3px;left:3px;width:5px;height:5px;border-top:1px solid rgba(0,183,255,0.4);border-left:1px solid rgba(0,183,255,0.4);';
+        netTrigger.appendChild(ntc1);
+        var ntc2 = document.createElement('div');
+        ntc2.style.cssText = 'position:absolute;bottom:3px;right:3px;width:5px;height:5px;border-bottom:1px solid rgba(255,0,178,0.3);border-right:1px solid rgba(255,0,178,0.3);';
+        netTrigger.appendChild(ntc2);
 
-            function topoResize() {
-                var w = tc.parentElement.offsetWidth - 22;
-                if (w < 10) w = 200;
-                if (w === lastTW) return;
-                tc.width = w;
-                tc.height = 140;
-                lastTW = w;
-            }
-            topoResize();
-            var nodes = [
-                { x: 0.5, y: 0.15, label: 'WAN', color: '#00d4ff', r: 5 },
-                { x: 0.5, y: 0.38, label: 'RB3011', color: '#FFD700', r: 6 },
-                { x: 0.18, y: 0.62, label: 'V10', color: '#00ff88', r: 4 },
-                { x: 0.42, y: 0.62, label: 'V20', color: '#ff6600', r: 4 },
-                { x: 0.65, y: 0.62, label: 'V30', color: '#ff2244', r: 4 },
-                { x: 0.85, y: 0.62, label: 'V40', color: '#B986F2', r: 4 },
-                { x: 0.18, y: 0.88, label: 'PCs', color: '#00ff88', r: 3 },
-                { x: 0.42, y: 0.88, label: 'SRV', color: '#ff6600', r: 3 },
-                { x: 0.65, y: 0.88, label: 'iDRAC', color: '#ff2244', r: 3 },
-                { x: 0.85, y: 0.88, label: 'RPi', color: '#B986F2', r: 3 }
-            ];
-            var links = [[0,1],[1,2],[1,3],[1,4],[1,5],[2,6],[3,7],[4,8],[5,9]];
+        sidebar.appendChild(netTrigger);
 
-            function drawTopo() {
-                topoResize();
-                var w = tc.width, h = tc.height;
-                tCtx.clearRect(0, 0, w, h);
-                // Draw links
-                links.forEach(function(l) {
-                    var a = nodes[l[0]], b = nodes[l[1]];
-                    tCtx.beginPath();
-                    tCtx.moveTo(a.x * w, a.y * h);
-                    tCtx.lineTo(b.x * w, b.y * h);
-                    tCtx.strokeStyle = 'rgba(0,183,255,0.25)';
-                    tCtx.lineWidth = 1;
-                    tCtx.stroke();
-                });
-                // Draw nodes
-                var time = Date.now() * 0.001;
-                nodes.forEach(function(n, ni) {
-                    var nx = n.x * w, ny = n.y * h;
-                    var pulse = 0.7 + Math.sin(time + ni) * 0.3;
-                    // Glow
-                    tCtx.beginPath();
-                    tCtx.arc(nx, ny, n.r * 3, 0, Math.PI * 2);
-                    tCtx.fillStyle = n.color.replace(')', ',' + (pulse * 0.1) + ')').replace('rgb', 'rgba').replace('#', '');
-                    tCtx.fillStyle = 'rgba(' + hexToRgb(n.color) + ',' + (pulse * 0.12) + ')';
-                    tCtx.fill();
-                    // Core
-                    tCtx.beginPath();
-                    tCtx.arc(nx, ny, n.r, 0, Math.PI * 2);
-                    tCtx.fillStyle = n.color;
-                    tCtx.globalAlpha = pulse;
-                    tCtx.fill();
-                    tCtx.globalAlpha = 1;
-                    // Label
-                    tCtx.font = '7px "JetBrains Mono",monospace';
-                    tCtx.fillStyle = 'rgba(153,170,208,0.7)';
-                    tCtx.textAlign = 'center';
-                    tCtx.fillText(n.label, nx, ny + n.r + 10);
-                });
-                requestAnimationFrame(drawTopo);
-            }
+        // Trigger click toggles popup
+        netTrigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (typeof window._hccToggleNetPopup === 'function') window._hccToggleNetPopup();
+        });
 
-            function hexToRgb(hex) {
-                var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-                return r+','+g+','+b;
-            }
-            drawTopo();
-        }, 500);
+        // ── BUILD NETWORK TOPOLOGY POPUP PANEL ──
+        buildNetworkPopup();
 
         // ── SIDEBAR EFFECTS ──
         var sbEffects = document.getElementById('hcc-sb-effects');
