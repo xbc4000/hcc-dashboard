@@ -6,7 +6,7 @@
         var container = document.getElementById(containerId);
         if (!container) return;
         var canvas = document.createElement('canvas');
-        canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
+        canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
         container.appendChild(canvas);
         var ctx = canvas.getContext('2d');
         var particles = [];

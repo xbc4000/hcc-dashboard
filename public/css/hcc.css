@@ -557,6 +557,8 @@ body {
 
 #hcc-main {
     padding: 58px 8px 40px 86px;
+    position: relative;
+    z-index: 5;
 }
 
 /* Page-hidden panels */
