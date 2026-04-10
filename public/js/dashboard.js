@@ -56,6 +56,7 @@
             updateServiceCount(d.services);
             updateTicker(d.pihole);
             updateHeaderLive(d.pihole);
+            if (typeof window._hccUpdateSidebar === 'function') window._hccUpdateSidebar(d.pihole, d.threat, d.services);
             doAudio(d.pihole, d.services);
             flashPanels();
             // Re-apply effects that get destroyed by innerHTML re-renders
@@ -716,12 +717,155 @@
             nav.appendChild(li);
         });
 
-        // Sidebar scan line
+        // ── SIDEBAR WIDGETS (below nav) ──
+        var sidebar = document.getElementById('hcc-sidebar');
+        var widgetCSS = 'margin:8px 5px;padding:8px 10px;border:1px solid rgba(0,183,255,0.15);background:linear-gradient(180deg,rgba(0,183,255,0.03),rgba(0,0,0,0.3));font-family:var(--font-mono);clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));';
+        var hdrCSS = 'font-size:9px;letter-spacing:3px;color:#0088bb;text-transform:uppercase;margin-bottom:5px;display:flex;align-items:center;gap:5px;';
+        var rowCSS = 'display:flex;justify-content:space-between;align-items:center;padding:1px 0;';
+
+        // DNS Stats widget
+        var dnsWidget = document.createElement('div');
+        dnsWidget.style.cssText = widgetCSS;
+        dnsWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#00ff88;font-size:10px;animation:hccLivePulse 2s ease-in-out infinite;">●</span> DNS STATS</div>' +
+            '<div style="' + rowCSS + '"><span style="font-size:10px;letter-spacing:2px;color:#6688aa;">QRY</span><span id="sb-queries" style="font-size:13px;color:#00d4ff;font-weight:700;text-shadow:0 0 6px rgba(0,212,255,0.4);letter-spacing:1px;">---</span></div>' +
+            '<div style="' + rowCSS + '"><span style="font-size:10px;letter-spacing:2px;color:#6688aa;">BLK</span><span id="sb-blocked" style="font-size:13px;color:#ff6600;font-weight:700;text-shadow:0 0 6px rgba(255,102,0,0.4);letter-spacing:1px;">---</span></div>' +
+            '<div style="' + rowCSS + '"><span style="font-size:10px;letter-spacing:2px;color:#6688aa;">PCT</span><span id="sb-pct" style="font-size:13px;color:#FF00B2;font-weight:700;text-shadow:0 0 6px rgba(255,0,178,0.4);letter-spacing:1px;">---</span></div>';
+        sidebar.appendChild(dnsWidget);
+
+        // Services widget
+        var svcWidget = document.createElement('div');
+        svcWidget.style.cssText = widgetCSS;
+        svcWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#00d4ff;font-size:10px;">◆</span> SERVICES</div>' +
+            '<div id="sb-services" style="font-size:10px;letter-spacing:1px;color:#6688aa;">---</div>';
+        sidebar.appendChild(svcWidget);
+
+        // Threat widget
+        var threatWidget = document.createElement('div');
+        threatWidget.style.cssText = widgetCSS;
+        threatWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#ff6600;font-size:10px;">▲</span> THREAT</div>' +
+            '<div style="height:3px;background:#111;border:1px solid rgba(0,183,255,0.1);margin:3px 0;position:relative;overflow:hidden;"><div id="sb-threat-fill" style="height:100%;width:20%;background:linear-gradient(90deg,#00ff88,#FFD700,#ff6600);transition:width 1s ease;"></div></div>' +
+            '<div style="' + rowCSS + '"><span style="font-size:10px;color:#6688aa;letter-spacing:1px;">STATUS</span><span id="sb-threat-text" style="font-size:12px;color:#00ff88;font-weight:700;letter-spacing:2px;">LOW</span></div>';
+        sidebar.appendChild(threatWidget);
+
+        // Update sidebar widgets on each poll
+        window._hccUpdateSidebar = function(pihole, threat, services) {
+            var q = document.getElementById('sb-queries');
+            var b = document.getElementById('sb-blocked');
+            var p = document.getElementById('sb-pct');
+            if (q && pihole) q.textContent = fmtNum(pihole.totalQueries);
+            if (b && pihole) b.textContent = fmtNum(pihole.blockedQueries);
+            if (p && pihole) p.textContent = (pihole.percentBlocked||0).toFixed(1) + '%';
+
+            // Services
+            var svcEl = document.getElementById('sb-services');
+            if (svcEl && services) {
+                var up=0,total=0;
+                for(var k in services){total++;if(services[k].status==='up')up++;}
+                svcEl.innerHTML = '<span style="color:var(--green);">' + up + ' UP</span> / <span style="color:' + (total-up>0?'var(--red)':'var(--text-muted)') + ';">' + (total-up) + ' DOWN</span>';
+            }
+
+            // Threat
+            var tf = document.getElementById('sb-threat-fill');
+            var tt = document.getElementById('sb-threat-text');
+            if (tf && tt && threat) {
+                var pctW = threat.level === 'LOW' ? 20 : threat.level === 'MEDIUM' ? 45 : threat.level === 'HIGH' ? 75 : 95;
+                tf.style.width = pctW + '%';
+                tt.textContent = threat.level;
+                tt.style.color = threat.color;
+            }
+        };
+
+        // ── SIDEBAR EFFECTS ──
         var sbEffects = document.getElementById('hcc-sb-effects');
         if (sbEffects) {
+            // Scan line
             var scanLine = document.createElement('div');
             scanLine.id = 'hcc-sb-scan';
             sbEffects.appendChild(scanLine);
+
+            // Data rain
+            var rainStyle = document.createElement('style');
+            rainStyle.textContent = '@keyframes hccSbRainFall{0%{top:-20%}100%{top:120%}}';
+            document.head.appendChild(rainStyle);
+            var hexChars = '0123456789ABCDEF>|.:[]{}';
+            for (var ri = 0; ri < 6; ri++) {
+                var col = document.createElement('div');
+                col.style.cssText = 'position:absolute;top:-100%;left:' + (3 + ri * 8) + 'px;font-family:var(--font-mono);font-size:8px;color:#00B7FF;line-height:10px;white-space:pre;writing-mode:vertical-lr;letter-spacing:2px;text-shadow:0 0 4px rgba(0,183,255,0.4);opacity:0.4;animation:hccSbRainFall ' + (15 + Math.random() * 20) + 's linear ' + (Math.random() * 10) + 's infinite;';
+                var str = '';
+                for (var rj = 0; rj < 60; rj++) str += hexChars[Math.floor(Math.random() * hexChars.length)];
+                col.textContent = str;
+                sbEffects.appendChild(col);
+            }
+
+            // Particles (neural network canvas)
+            var canvas = document.createElement('canvas');
+            canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
+            sbEffects.appendChild(canvas);
+            var ctx = canvas.getContext('2d');
+            var sbParticles = [];
+            var lastW = 0, lastH = 0;
+
+            function sbResize() {
+                var w = sidebar.offsetWidth;
+                var h = sidebar.offsetHeight;
+                if (w === lastW && h === lastH) return;
+                var scaleX = lastW > 0 ? w / lastW : 1;
+                canvas.width = w;
+                canvas.height = h;
+                if (scaleX !== 1 && lastW > 0) {
+                    for (var si = 0; si < sbParticles.length; si++) {
+                        sbParticles[si].x = Math.min(sbParticles[si].x * scaleX, w - 2);
+                    }
+                }
+                lastW = w; lastH = h;
+            }
+            sbResize();
+            window.addEventListener('resize', sbResize);
+
+            for (var pi = 0; pi < 35; pi++) {
+                sbParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.2,
+                    r: Math.random() * 2 + 1,
+                    pulse: Math.random() * Math.PI * 2
+                });
+            }
+
+            function sbDraw() {
+                sbResize();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (var di = 0; di < sbParticles.length; di++) {
+                    var dp = sbParticles[di];
+                    dp.x += dp.vx; dp.y += dp.vy; dp.pulse += 0.02;
+                    if (dp.x < 0 || dp.x > canvas.width) dp.vx *= -1;
+                    if (dp.y < 0 || dp.y > canvas.height) dp.vy *= -1;
+                    var glow = 0.6 + Math.sin(dp.pulse) * 0.3;
+                    // Halo
+                    ctx.beginPath(); ctx.arc(dp.x, dp.y, dp.r * 4, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,183,255,' + (glow * 0.06) + ')'; ctx.fill();
+                    // Core
+                    ctx.beginPath(); ctx.arc(dp.x, dp.y, dp.r, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,220,255,' + glow + ')'; ctx.fill();
+                    // Hot center
+                    ctx.beginPath(); ctx.arc(dp.x, dp.y, dp.r * 0.3, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(200,245,255,' + glow + ')'; ctx.fill();
+                    // Connections
+                    for (var dj = di + 1; dj < sbParticles.length; dj++) {
+                        var dp2 = sbParticles[dj];
+                        var ddx = dp.x - dp2.x, ddy = dp.y - dp2.y;
+                        var dist = Math.sqrt(ddx * ddx + ddy * ddy);
+                        if (dist < 100) {
+                            ctx.beginPath(); ctx.moveTo(dp.x, dp.y); ctx.lineTo(dp2.x, dp2.y);
+                            ctx.strokeStyle = 'rgba(0,200,255,' + (0.5 * (1 - dist / 100)) + ')';
+                            ctx.lineWidth = 1; ctx.stroke();
+                        }
+                    }
+                }
+                requestAnimationFrame(sbDraw);
+            }
+            sbDraw();
         }
     }
 
