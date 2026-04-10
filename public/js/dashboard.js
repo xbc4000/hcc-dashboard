@@ -819,6 +819,7 @@
 
         // DNS Stats widget
         var dnsWidget = document.createElement('div');
+        dnsWidget.className = 'hcc-sb-widget';
         dnsWidget.style.cssText = widgetCSS;
         dnsWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#00ff88;font-size:10px;animation:hccLivePulse 2s ease-in-out infinite;">●</span> DNS STATS</div>' +
             '<div style="' + rowCSS + '"><span style="font-size:10px;letter-spacing:2px;color:#6688aa;">QRY</span><span id="sb-queries" style="font-size:13px;color:#00d4ff;font-weight:700;text-shadow:0 0 6px rgba(0,212,255,0.4);letter-spacing:1px;">---</span></div>' +
@@ -828,6 +829,7 @@
 
         // Services widget
         var svcWidget = document.createElement('div');
+        svcWidget.className = 'hcc-sb-widget';
         svcWidget.style.cssText = widgetCSS;
         svcWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#00d4ff;font-size:10px;">◆</span> SERVICES</div>' +
             '<div id="sb-services" style="font-size:10px;letter-spacing:1px;color:#6688aa;">---</div>';
@@ -835,6 +837,7 @@
 
         // Threat widget
         var threatWidget = document.createElement('div');
+        threatWidget.className = 'hcc-sb-widget';
         threatWidget.style.cssText = widgetCSS;
         threatWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#ff6600;font-size:10px;">▲</span> THREAT</div>' +
             '<div style="height:3px;background:#111;border:1px solid rgba(0,183,255,0.1);margin:3px 0;position:relative;overflow:hidden;"><div id="sb-threat-fill" style="height:100%;width:20%;background:linear-gradient(90deg,#00ff88,#FFD700,#ff6600);transition:width 1s ease;"></div></div>' +
@@ -871,7 +874,8 @@
 
         // ── NETWORK TOPOLOGY MINI-PANEL ──
         var topoWidget = document.createElement('div');
-        topoWidget.style.cssText = widgetCSS + 'min-height:160px;position:relative;overflow:hidden;';
+        topoWidget.className = 'hcc-sb-widget';
+        topoWidget.style.cssText = widgetCSS + 'position:relative;overflow:hidden;';
         topoWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#B986F2;font-size:10px;">◎</span> NETWORK MAP</div>';
 
         // Topology canvas
