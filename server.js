@@ -22,7 +22,10 @@ const app = express();
 const PORT = process.env.PORT || 3080;
 
 // Security headers — CSP disabled (internal network only)
-app.use(helmet({ contentSecurityPolicy: false }));
+// HSTS disabled because we serve over plain HTTP — sending HSTS over
+// HTTP causes browsers to cache an HTTPS upgrade requirement and then
+// refuse to load HCC entirely. Internal network, HTTPS not needed.
+app.use(helmet({ contentSecurityPolicy: false, hsts: false }));
 app.use(express.json());
 
 // Session config
