@@ -1371,6 +1371,16 @@ body.hcc-edit-mode .hcc-panel {
 .cc-btn-mini:hover { border-color: var(--cyan); color: var(--cyan); }
 .cc-slider { flex: 1; height: 4px; }
 
+.obs-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.obs-col {
+    min-width: 0;
+}
+
 .cc-log {
     background: rgba(0,0,0,0.5);
     border: 1px solid var(--border);

@@ -537,17 +537,25 @@
         html += 'Enable, port 4455, set or clear password.';
         html += '</div>';
         html += '<div class="cc-divider"></div>';
-        html += '<div class="cc-section-label">SCENES</div>';
-        html += '<div id="cc-obs-scenes" class="cc-scenes"><div class="cc-empty">Connect to load scenes</div></div>';
+        html += '<div class="obs-cols">';
+        html += '<div class="obs-col"><div class="cc-section-label">SCENES</div>';
+        html += '<div id="cc-obs-scenes" class="cc-scenes"><div class="cc-empty">Connect to load</div></div>';
+        html += '</div>';
+        html += '<div class="obs-col"><div class="cc-section-label">SOURCES</div>';
+        html += '<div id="cc-obs-sources" class="cc-scenes"><div class="cc-empty">Select a scene</div></div>';
+        html += '</div>';
+        html += '</div>';
         html += '<div class="cc-divider"></div>';
-        html += '<div class="cc-section-label">STREAM / RECORD</div>';
+        html += '<div class="cc-section-label">STREAM / RECORD / VIRTUAL CAM</div>';
         html += '<div class="cc-row">';
-        html += '<button id="cc-obs-stream" class="cc-btn cc-btn-action">START STREAM</button>';
-        html += '<button id="cc-obs-record" class="cc-btn cc-btn-action">START REC</button>';
+        html += '<button id="cc-obs-stream" class="cc-btn cc-btn-action">STREAM</button>';
+        html += '<button id="cc-obs-record" class="cc-btn cc-btn-action">REC</button>';
+        html += '<button id="cc-obs-vcam" class="cc-btn cc-btn-action">V-CAM</button>';
         html += '</div>';
         html += '<div class="cc-row">';
         html += '<div class="cc-stat"><span class="cc-stat-label">STREAM</span><span id="cc-obs-stream-status" class="cc-stat-val">OFFLINE</span></div>';
         html += '<div class="cc-stat"><span class="cc-stat-label">REC</span><span id="cc-obs-rec-status" class="cc-stat-val">OFFLINE</span></div>';
+        html += '<div class="cc-stat"><span class="cc-stat-label">VCAM</span><span id="cc-obs-vcam-status" class="cc-stat-val">OFFLINE</span></div>';
         html += '<div class="cc-stat"><span class="cc-stat-label">FPS</span><span id="cc-obs-fps" class="cc-stat-val">--</span></div>';
         html += '<div class="cc-stat"><span class="cc-stat-label">CPU</span><span id="cc-obs-cpu" class="cc-stat-val">--</span></div>';
         html += '</div>';
@@ -693,9 +701,12 @@
         var connectBtn = document.getElementById('cc-obs-connect');
         var disconnectBtn = document.getElementById('cc-obs-disconnect');
         var scenesEl = document.getElementById('cc-obs-scenes');
+        var sourcesEl = document.getElementById('cc-obs-sources');
         var streamBtn = document.getElementById('cc-obs-stream');
         var recBtn = document.getElementById('cc-obs-record');
+        var vcamBtn = document.getElementById('cc-obs-vcam');
         var statusInterval = null;
+        var currentSceneName = null;
 
         // Restore saved settings
         try {
@@ -814,8 +825,10 @@
                 }
                 // Event (op 5)
                 if (msg.op === 5) {
-                    if (msg.d.eventType === 'CurrentProgramSceneChanged') loadOBSScenes();
-                    if (msg.d.eventType === 'StreamStateChanged' || msg.d.eventType === 'RecordStateChanged') loadOBSStatus();
+                    var ev = msg.d.eventType;
+                    if (ev === 'CurrentProgramSceneChanged') loadOBSScenes();
+                    if (ev === 'SceneItemEnableStateChanged' && currentSceneName) loadOBSSources(currentSceneName);
+                    if (ev === 'StreamStateChanged' || ev === 'RecordStateChanged' || ev === 'VirtualcamStateChanged') loadOBSStatus();
                 }
             };
         });
@@ -829,40 +842,78 @@
         async function loadOBSScenes() {
             try {
                 var scenes = await obsRequest('GetSceneList');
-                var current = scenes.currentProgramSceneName;
+                currentSceneName = scenes.currentProgramSceneName;
                 scenesEl.innerHTML = '';
                 scenes.scenes.reverse().forEach(function(sc) {
                     var btn = document.createElement('button');
-                    btn.className = 'cc-scene-btn' + (sc.sceneName === current ? ' active' : '');
+                    btn.className = 'cc-scene-btn' + (sc.sceneName === currentSceneName ? ' active' : '');
                     btn.textContent = sc.sceneName;
-                    btn.addEventListener('click', function() {
-                        obsRequest('SetCurrentProgramScene', { sceneName: sc.sceneName });
+                    btn.addEventListener('click', async function() {
+                        await obsRequest('SetCurrentProgramScene', { sceneName: sc.sceneName });
+                        currentSceneName = sc.sceneName;
+                        loadOBSSources(sc.sceneName);
                     });
                     scenesEl.appendChild(btn);
                 });
+                if (currentSceneName) loadOBSSources(currentSceneName);
             } catch(e) { scenesEl.innerHTML = '<div class="cc-empty">No scenes</div>'; }
+        }
+
+        async function loadOBSSources(sceneName) {
+            try {
+                var data = await obsRequest('GetSceneItemList', { sceneName: sceneName });
+                if (!data || !data.sceneItems) { sourcesEl.innerHTML = '<div class="cc-empty">No sources</div>'; return; }
+                sourcesEl.innerHTML = '';
+                data.sceneItems.forEach(function(item) {
+                    var btn = document.createElement('button');
+                    btn.className = 'cc-scene-btn' + (item.sceneItemEnabled ? ' active' : '');
+                    btn.textContent = item.sourceName;
+                    btn.title = (item.sceneItemEnabled ? 'Visible — click to hide' : 'Hidden — click to show');
+                    btn.addEventListener('click', async function() {
+                        var newState = !item.sceneItemEnabled;
+                        await obsRequest('SetSceneItemEnabled', {
+                            sceneName: sceneName,
+                            sceneItemId: item.sceneItemId,
+                            sceneItemEnabled: newState
+                        });
+                        item.sceneItemEnabled = newState;
+                        btn.classList.toggle('active', newState);
+                        btn.title = (newState ? 'Visible — click to hide' : 'Hidden — click to show');
+                    });
+                    sourcesEl.appendChild(btn);
+                });
+                if (data.sceneItems.length === 0) sourcesEl.innerHTML = '<div class="cc-empty">No sources</div>';
+            } catch(e) { sourcesEl.innerHTML = '<div class="cc-empty">Error</div>'; }
         }
 
         async function loadOBSStatus() {
             try {
                 var stream = await obsRequest('GetStreamStatus');
                 var rec = await obsRequest('GetRecordStatus');
+                var vcam = await obsRequest('GetVirtualCamStatus').catch(function() { return null; });
                 var stats = await obsRequest('GetStats');
                 document.getElementById('cc-obs-stream-status').textContent = stream.outputActive ? 'LIVE' : 'OFFLINE';
                 document.getElementById('cc-obs-stream-status').style.color = stream.outputActive ? 'var(--red)' : 'var(--text-muted)';
                 document.getElementById('cc-obs-rec-status').textContent = rec.outputActive ? 'REC' : 'OFFLINE';
                 document.getElementById('cc-obs-rec-status').style.color = rec.outputActive ? 'var(--red)' : 'var(--text-muted)';
+                if (vcam) {
+                    document.getElementById('cc-obs-vcam-status').textContent = vcam.outputActive ? 'ACTIVE' : 'OFFLINE';
+                    document.getElementById('cc-obs-vcam-status').style.color = vcam.outputActive ? '#1DB954' : 'var(--text-muted)';
+                    vcamBtn.textContent = vcam.outputActive ? 'STOP V-CAM' : 'V-CAM';
+                    vcamBtn.classList.toggle('active', vcam.outputActive);
+                }
                 document.getElementById('cc-obs-fps').textContent = stats.activeFps ? stats.activeFps.toFixed(1) : '--';
                 document.getElementById('cc-obs-cpu').textContent = stats.cpuUsage ? stats.cpuUsage.toFixed(1) + '%' : '--';
-                streamBtn.textContent = stream.outputActive ? 'STOP STREAM' : 'START STREAM';
+                streamBtn.textContent = stream.outputActive ? 'STOP STREAM' : 'STREAM';
                 streamBtn.classList.toggle('active', stream.outputActive);
-                recBtn.textContent = rec.outputActive ? 'STOP REC' : 'START REC';
+                recBtn.textContent = rec.outputActive ? 'STOP REC' : 'REC';
                 recBtn.classList.toggle('active', rec.outputActive);
             } catch(e) {}
         }
 
         streamBtn.addEventListener('click', function() { obsRequest('ToggleStream'); });
         recBtn.addEventListener('click', function() { obsRequest('ToggleRecord'); });
+        vcamBtn.addEventListener('click', function() { obsRequest('ToggleVirtualCam'); });
     }
 
     // ── SPOTIFY REMOTE CONTROLLER (server-proxied) ──
