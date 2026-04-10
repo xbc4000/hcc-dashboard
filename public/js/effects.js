@@ -6,21 +6,27 @@
         var container = document.getElementById(containerId);
         if (!container) return;
         var canvas = document.createElement('canvas');
-        canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.5;';
+        canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
         container.appendChild(canvas);
         var ctx = canvas.getContext('2d');
         var particles = [];
-        var colors = ['#00B7FF', '#FF00B2', '#00ff88', '#00d4ff'];
+        var colorData = [
+            { hex: '#00B7FF', rgb: '0,183,255' },
+            { hex: '#FF00B2', rgb: '255,0,178' },
+            { hex: '#00ff88', rgb: '0,255,136' },
+            { hex: '#00d4ff', rgb: '0,212,255' }
+        ];
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         resize();
         window.addEventListener('resize', resize);
 
-        for (var i = 0; i < 90; i++) {
+        for (var i = 0; i < 100; i++) {
+            var c = colorData[Math.floor(Math.random() * colorData.length)];
             particles.push({
                 x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-                vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
-                size: Math.random() * 3 + 0.5, color: colors[Math.floor(Math.random() * colors.length)],
+                vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+                r: Math.random() * 2.5 + 1, hex: c.hex, rgb: c.rgb,
                 pulse: Math.random() * Math.PI * 2
             });
         }
@@ -32,20 +38,32 @@
                 p.x += p.vx; p.y += p.vy; p.pulse += 0.02;
                 if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
                 if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
-                var glow = 0.6 + Math.sin(p.pulse) * 0.4;
-                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fillStyle = p.color; ctx.globalAlpha = glow; ctx.fill();
+                var glow = 0.7 + Math.sin(p.pulse) * 0.3;
+                // Wide glow halo
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + p.rgb + ',' + (glow * 0.08) + ')'; ctx.fill();
+                // Outer glow
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + p.rgb + ',' + (glow * 0.25) + ')'; ctx.fill();
+                // Core dot
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + p.rgb + ',' + glow + ')'; ctx.fill();
+                // Hot white center
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.35, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(220,245,255,' + glow + ')'; ctx.fill();
+                // Connections
                 for (var j = i + 1; j < particles.length; j++) {
-                    var dx = particles[j].x - p.x, dy = particles[j].y - p.y;
+                    var p2 = particles[j];
+                    var dx = p2.x - p.x, dy = p2.y - p.y;
                     var dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 160) {
-                        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.strokeStyle = p.color; ctx.globalAlpha = (1 - dist / 160) * 0.2;
-                        ctx.lineWidth = 0.7; ctx.stroke();
+                    if (dist < 180) {
+                        var alpha = 0.5 * (1 - dist / 180);
+                        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = 'rgba(' + p.rgb + ',' + alpha + ')';
+                        ctx.lineWidth = 1.2; ctx.stroke();
                     }
                 }
             }
-            ctx.globalAlpha = 1;
             requestAnimationFrame(draw);
         }
         draw();
