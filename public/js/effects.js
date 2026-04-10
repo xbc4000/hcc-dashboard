@@ -279,7 +279,7 @@
         // Left edge
         var streamL = document.createElement('div');
         streamL.id = 'hcc-datastream-l';
-        streamL.style.cssText = 'position:fixed;top:50px;left:0;width:24px;height:calc(100vh - 78px);overflow:hidden;pointer-events:none;z-index:99;';
+        streamL.style.cssText = 'position:fixed;top:50px;left:54px;width:24px;height:calc(100vh - 78px);overflow:hidden;pointer-events:none;z-index:99;';
         var col3 = document.createElement('div');
         col3.style.cssText = 'position:absolute;top:100%;left:2px;font-family:var(--font-mono);font-size:11px;color:rgba(0,183,255,0.4);writing-mode:vertical-lr;letter-spacing:2px;line-height:1;animation:hccDataFallUp 14s linear infinite;white-space:nowrap;';
         col3.textContent = '10110100 01011010 01101001 10010110';
@@ -302,8 +302,8 @@
         if (document.getElementById('hcc-hud-tr')) return;
         var corners = [
             { id: 'hcc-hud-tr', css: 'top:56px;right:6px;border-top:2px solid rgba(255,0,178,0.5);border-right:2px solid rgba(255,0,178,0.5);' },
-            { id: 'hcc-hud-bl', css: 'bottom:34px;left:6px;border-bottom:2px solid rgba(0,183,255,0.5);border-left:2px solid rgba(0,183,255,0.5);' },
-            { id: 'hcc-hud-tl', css: 'top:56px;left:6px;border-top:2px solid rgba(0,183,255,0.4);border-left:2px solid rgba(0,183,255,0.4);' },
+            { id: 'hcc-hud-bl', css: 'bottom:34px;left:60px;border-bottom:2px solid rgba(0,183,255,0.5);border-left:2px solid rgba(0,183,255,0.5);' },
+            { id: 'hcc-hud-tl', css: 'top:56px;left:60px;border-top:2px solid rgba(0,183,255,0.4);border-left:2px solid rgba(0,183,255,0.4);' },
             { id: 'hcc-hud-br', css: 'bottom:34px;right:6px;border-bottom:2px solid rgba(255,0,178,0.4);border-right:2px solid rgba(255,0,178,0.4);' }
         ];
         corners.forEach(function(c) {

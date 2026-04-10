@@ -613,9 +613,122 @@
         localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
     }
 
+    // ── SIDEBAR ──
+    var NAV_ITEMS = [
+        { id: 'home',     icon: 'HM', label: 'HOME',       color: '#00d4ff' },
+        { id: 'pihole',   icon: 'PH', label: 'PI-HOLE',    color: '#00ff88' },
+        { id: 'servers',  icon: 'SV', label: 'SERVERS',     color: '#ff6600' },
+        { id: 'firewall', icon: 'FW', label: 'FIREWALL',    color: '#ff2244' },
+        { id: 'network',  icon: 'NW', label: 'NETWORK',     color: '#B986F2' },
+        { id: 'router',   icon: 'RT', label: 'ROUTER',      color: '#FFD700' },
+        { id: 'monitor',  icon: 'MO', label: 'MONITOR',     color: '#FF00B2' }
+    ];
+
+    function buildSidebar() {
+        var nav = document.getElementById('hcc-sb-nav');
+        if (!nav) return;
+
+        NAV_ITEMS.forEach(function(item, i) {
+            var accent = item.color;
+            var isActive = item.id === 'home';
+            var borderAlpha = isActive ? '' : '55';
+
+            var li = document.createElement('li');
+            li.className = 'hcc-sb-item' + (isActive ? ' active' : '');
+            li.dataset.page = item.id;
+
+            var panel = document.createElement('div');
+            panel.className = 'hcc-sb-panel';
+
+            // ── ICON ZONE ──
+            var iconZone = document.createElement('div');
+            iconZone.className = 'hcc-sb-iconzone';
+            iconZone.style.cssText = 'border:1px solid ' + accent + borderAlpha + ';background:linear-gradient(180deg,rgba(2,4,12,0.97),' + accent + '08);' + (isActive ? 'box-shadow:0 0 15px ' + accent + '30,inset 0 0 10px ' + accent + '08;' : 'box-shadow:0 0 4px ' + accent + '10;');
+
+            // Hex icon
+            var iconWrap = document.createElement('div');
+            iconWrap.className = 'hcc-sb-icon';
+            iconWrap.style.cssText = 'background:' + accent + '18;border:2px solid ' + accent + 'aa;box-shadow:0 0 10px ' + accent + '35,inset 0 0 8px ' + accent + '12;color:' + accent + ';text-shadow:0 0 10px ' + accent + ',0 0 20px ' + accent + '60;';
+            iconWrap.textContent = item.icon;
+            iconZone.appendChild(iconWrap);
+
+            // Index number
+            var idx = document.createElement('div');
+            idx.className = 'hcc-sb-idx';
+            idx.style.color = accent;
+            idx.textContent = String(i + 1).padStart(2, '0');
+            iconZone.appendChild(idx);
+
+            // Active dot
+            if (isActive) {
+                var dot = document.createElement('div');
+                dot.className = 'hcc-sb-dot';
+                iconZone.appendChild(dot);
+            }
+
+            // Activity bar
+            var bar = document.createElement('div');
+            bar.className = 'hcc-sb-bar';
+            bar.style.cssText = 'background:linear-gradient(90deg,' + accent + ',' + accent + 'aa);box-shadow:0 0 4px ' + accent + '50;width:' + (isActive ? '100%' : '0%') + ';';
+            iconZone.appendChild(bar);
+
+            // Scan line
+            var scan = document.createElement('div');
+            scan.className = 'hcc-sb-scan';
+            iconZone.appendChild(scan);
+
+            panel.appendChild(iconZone);
+
+            // ── LABEL ZONE ──
+            var labelZone = document.createElement('div');
+            labelZone.className = 'hcc-sb-labelzone';
+            labelZone.style.cssText = 'border:1px solid ' + accent + borderAlpha + ';border-left:none;background:linear-gradient(135deg,rgba(2,4,12,0.95),' + accent + '06);' + (isActive ? 'box-shadow:0 0 10px ' + accent + '20;' : '');
+
+            var label = document.createElement('span');
+            label.className = 'hcc-sb-label';
+            label.style.cssText = 'color:' + accent + ';text-shadow:0 0 8px ' + accent + '50;';
+            label.textContent = item.label;
+            labelZone.appendChild(label);
+            panel.appendChild(labelZone);
+
+            // ── HOVER EFFECTS ──
+            panel.addEventListener('mouseenter', function() {
+                iconZone.style.borderColor = accent;
+                iconZone.style.boxShadow = '0 0 18px ' + accent + '40,inset 0 0 12px ' + accent + '0a';
+                labelZone.style.borderColor = accent;
+                labelZone.style.boxShadow = '0 0 12px ' + accent + '25';
+                iconWrap.style.background = accent + '25';
+                iconWrap.style.boxShadow = '0 0 15px ' + accent + '50,inset 0 0 10px ' + accent + '18';
+                if (!isActive) bar.style.width = '60%';
+            });
+
+            panel.addEventListener('mouseleave', function() {
+                iconZone.style.borderColor = accent + borderAlpha;
+                iconZone.style.boxShadow = isActive ? '0 0 15px ' + accent + '30,inset 0 0 10px ' + accent + '08' : '0 0 4px ' + accent + '10';
+                labelZone.style.borderColor = accent + borderAlpha;
+                labelZone.style.boxShadow = isActive ? '0 0 10px ' + accent + '20' : 'none';
+                iconWrap.style.background = accent + '18';
+                iconWrap.style.boxShadow = '0 0 10px ' + accent + '35,inset 0 0 8px ' + accent + '12';
+                if (!isActive) bar.style.width = '0%';
+            });
+
+            li.appendChild(panel);
+            nav.appendChild(li);
+        });
+
+        // Sidebar scan line
+        var sbEffects = document.getElementById('hcc-sb-effects');
+        if (sbEffects) {
+            var scanLine = document.createElement('div');
+            scanLine.id = 'hcc-sb-scan';
+            sbEffects.appendChild(scanLine);
+        }
+    }
+
     function startDashboard() {
         initClock();
         initGrid();
+        buildSidebar();
         // Core effects
         if (typeof addParticleField === 'function') addParticleField('particle-bg');
         if (typeof addDataRain === 'function') addDataRain();
