@@ -1264,7 +1264,7 @@ body.hcc-edit-mode .hcc-panel {
     font-size: 0.85rem;
     color: var(--orange);
     letter-spacing: 2px;
-    animation: tickerScroll 40s linear infinite;
+    animation: tickerScroll 120s linear infinite;
 }
 
 @keyframes tickerScroll {
