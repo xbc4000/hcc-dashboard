@@ -620,6 +620,34 @@
         html += '</div>';
         html += '</div></div>';
 
+        // ── HCC Spotify Bridge (librespot supervisor) ──
+        html += '<div class="cc-card cc-spbridge">';
+        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:#1DB954;">⌬</span><span class="cc-card-title">SPOTIFY BRIDGE</span><span id="cc-spbr-status" class="cc-card-status">CHECKING</span></div>';
+        html += '<div class="cc-card-body">';
+        html += '<div class="cc-row" style="gap:6px;">';
+        html += '<div class="cc-stat"><span class="cc-stat-label">DEVICE</span><span id="cc-spbr-name" class="cc-stat-val">--</span></div>';
+        html += '<div class="cc-stat"><span class="cc-stat-label">FORMAT</span><span id="cc-spbr-format" class="cc-stat-val">--</span></div>';
+        html += '<div class="cc-stat"><span class="cc-stat-label">BITRATE</span><span id="cc-spbr-bitrate" class="cc-stat-val">--</span></div>';
+        html += '</div>';
+        html += '<div class="cc-row" style="gap:6px;">';
+        html += '<div class="cc-stat"><span class="cc-stat-label">UPTIME</span><span id="cc-spbr-uptime" class="cc-stat-val">--</span></div>';
+        html += '<div class="cc-stat"><span class="cc-stat-label">RESTARTS</span><span id="cc-spbr-restarts" class="cc-stat-val">0</span></div>';
+        html += '<div class="cc-stat"><span class="cc-stat-label">EVENT</span><span id="cc-spbr-event" class="cc-stat-val">idle</span></div>';
+        html += '</div>';
+        html += '<div class="cc-divider"></div>';
+        html += '<div class="cc-section-label">NOW STREAMING (LOCAL)</div>';
+        html += '<div id="cc-spbr-now" class="cc-empty">Bridge idle — start playing on this device from any Spotify client</div>';
+        html += '<div class="cc-divider"></div>';
+        html += '<div class="cc-row">';
+        html += '<input type="text" id="cc-spbr-url" placeholder="http://10.40.40.2:3081" class="cc-input" />';
+        html += '</div>';
+        html += '<div class="cc-row">';
+        html += '<button id="cc-spbr-restart" class="cc-btn cc-btn-warn">RESTART LIBRESPOT</button>';
+        html += '<button id="cc-spbr-refresh" class="cc-btn">REFRESH</button>';
+        html += '</div>';
+        html += '<div id="cc-spbr-log" class="cc-log"></div>';
+        html += '</div></div>';
+
         // ── Govee Lights ──
         html += '<div class="cc-card cc-govee">';
         html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:#B986F2;">✦</span><span class="cc-card-title">GOVEE LIGHTS</span><span id="cc-govee-status" class="cc-card-status">NOT CONFIGURED</span></div>';
@@ -661,9 +689,140 @@
 
         initOBSController();
         initSpotifyEmbed();
+        initSpotifyBridge();
         initGoveeController();
         initHAController();
         initOMELink();
+    }
+
+    // ── HCC SPOTIFY BRIDGE (librespot supervisor) ──
+    var spbrPollTimer = null;
+    function initSpotifyBridge() {
+        var urlEl = document.getElementById('cc-spbr-url');
+        var statusEl = document.getElementById('cc-spbr-status');
+        var nameEl = document.getElementById('cc-spbr-name');
+        var fmtEl = document.getElementById('cc-spbr-format');
+        var brEl = document.getElementById('cc-spbr-bitrate');
+        var upEl = document.getElementById('cc-spbr-uptime');
+        var restEl = document.getElementById('cc-spbr-restarts');
+        var evEl = document.getElementById('cc-spbr-event');
+        var nowEl = document.getElementById('cc-spbr-now');
+        var logEl = document.getElementById('cc-spbr-log');
+        var restartBtn = document.getElementById('cc-spbr-restart');
+        var refreshBtn = document.getElementById('cc-spbr-refresh');
+
+        var saved = localStorage.getItem('hcc-spbr-url') || 'http://' + window.location.hostname + ':3081';
+        urlEl.value = saved;
+
+        function spbrLog(msg, type) {
+            var ts = new Date().toLocaleTimeString();
+            var color = type === 'err' ? 'var(--red)' : type === 'ok' ? 'var(--green)' : 'var(--text-muted)';
+            var line = document.createElement('div');
+            line.style.cssText = 'font-size:0.65rem;color:' + color + ';line-height:1.4;';
+            line.textContent = '[' + ts + '] ' + msg;
+            logEl.appendChild(line);
+            while (logEl.children.length > 12) logEl.removeChild(logEl.firstChild);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function fmtUptime(ms) {
+            if (!ms) return '--';
+            var s = Math.floor(ms / 1000);
+            var h = Math.floor(s / 3600);
+            var m = Math.floor((s % 3600) / 60);
+            s = s % 60;
+            if (h > 0) return h + 'h ' + m + 'm';
+            if (m > 0) return m + 'm ' + s + 's';
+            return s + 's';
+        }
+
+        async function fetchStatus() {
+            var url = urlEl.value.trim().replace(/\/$/, '');
+            try {
+                var res = await fetch(url + '/status', { signal: AbortSignal.timeout(4000) });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                var d = await res.json();
+                statusEl.textContent = d.running ? 'RUNNING' : 'DOWN';
+                statusEl.style.color = d.running ? '#1DB954' : 'var(--red)';
+                if (d.opts) {
+                    nameEl.textContent = d.opts.name || '--';
+                    fmtEl.textContent = d.opts.format || '--';
+                    brEl.textContent = (d.opts.bitrate || '--') + 'k';
+                }
+                upEl.textContent = fmtUptime(d.uptime_ms);
+                restEl.textContent = d.totalRestarts || 0;
+                if (d.state) {
+                    evEl.textContent = d.state.event || 'idle';
+                    if (d.state.track && d.state.artist) {
+                        nowEl.innerHTML = '<div style="color:var(--text-bright);font-weight:700;font-size:0.85rem;">' + esc(d.state.track) + '</div>' +
+                            '<div style="color:#1DB954;font-size:0.75rem;margin-top:2px;">' + esc(d.state.artist) + '</div>' +
+                            (d.state.album ? '<div style="color:var(--text-muted);font-size:0.7rem;margin-top:1px;">' + esc(d.state.album) + '</div>' : '');
+                    } else {
+                        nowEl.innerHTML = '<div class="cc-empty" style="padding:8px 0;">Bridge idle — start playing on this device from any Spotify client</div>';
+                    }
+                }
+                return true;
+            } catch (e) {
+                statusEl.textContent = 'UNREACHABLE';
+                statusEl.style.color = 'var(--red)';
+                evEl.textContent = '--';
+                nowEl.innerHTML = '<div class="cc-empty" style="padding:8px 0;">Bridge not reachable at ' + esc(url) + '</div>';
+                return false;
+            }
+        }
+
+        async function fetchLogs() {
+            var url = urlEl.value.trim().replace(/\/$/, '');
+            try {
+                var res = await fetch(url + '/logs?n=10', { signal: AbortSignal.timeout(4000) });
+                if (!res.ok) return;
+                var d = await res.json();
+                if (!d.logs || !d.logs.length) return;
+                logEl.innerHTML = '';
+                d.logs.forEach(function (entry) {
+                    var ts = new Date(entry.ts).toLocaleTimeString();
+                    var color = entry.level === 'error' ? 'var(--red)' :
+                                entry.level === 'warn' ? 'var(--orange)' :
+                                entry.level === 'librespot' ? 'var(--cyan)' :
+                                'var(--text-muted)';
+                    var line = document.createElement('div');
+                    line.style.cssText = 'font-size:0.65rem;color:' + color + ';line-height:1.4;';
+                    line.textContent = '[' + ts + '] ' + entry.msg;
+                    logEl.appendChild(line);
+                });
+                logEl.scrollTop = logEl.scrollHeight;
+            } catch (e) {}
+        }
+
+        restartBtn.addEventListener('click', async function () {
+            var url = urlEl.value.trim().replace(/\/$/, '');
+            spbrLog('Restart requested...', 'info');
+            try {
+                var res = await fetch(url + '/restart', { method: 'POST', signal: AbortSignal.timeout(4000) });
+                if (res.ok) spbrLog('Restart initiated', 'ok');
+                else spbrLog('Restart failed: HTTP ' + res.status, 'err');
+            } catch (e) { spbrLog('Restart error: ' + e.message, 'err'); }
+            setTimeout(function () { fetchStatus(); fetchLogs(); }, 2500);
+        });
+
+        refreshBtn.addEventListener('click', function () {
+            fetchStatus();
+            fetchLogs();
+        });
+
+        urlEl.addEventListener('change', function () {
+            localStorage.setItem('hcc-spbr-url', urlEl.value.trim());
+            fetchStatus();
+            fetchLogs();
+        });
+
+        // Initial + recurring
+        fetchStatus();
+        fetchLogs();
+        if (spbrPollTimer) clearInterval(spbrPollTimer);
+        spbrPollTimer = setInterval(function () {
+            fetchStatus();
+        }, 5000);
     }
 
     // ── OBS WEBSOCKET CONTROLLER ──
