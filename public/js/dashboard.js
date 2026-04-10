@@ -706,6 +706,15 @@
     function buildSidebar() {
         var nav = document.getElementById('hcc-sb-nav');
         if (!nav) return;
+        var sidebar = document.getElementById('hcc-sidebar');
+
+        // ── HCC LOGO at top ──
+        var logo = document.createElement('div');
+        logo.id = 'hcc-sb-logo';
+        logo.style.cssText = 'text-align:center;padding:14px 6px 10px;border-bottom:1px solid var(--border);margin-bottom:4px;';
+        logo.innerHTML = '<div style="font-size:28px;font-weight:800;color:var(--cyan-bright);letter-spacing:4px;text-shadow:0 0 20px rgba(0,212,255,0.5),0 0 40px rgba(0,212,255,0.2);line-height:1;">HCC</div>' +
+            '<div class="hcc-sb-label" style="font-size:8px;letter-spacing:3px;color:var(--text-muted);margin-top:4px;">COMMAND CENTER</div>';
+        sidebar.insertBefore(logo, nav);
 
         NAV_ITEMS.forEach(function(item, i) {
             var accent = item.color;
@@ -859,6 +868,86 @@
                 tt.style.color = threat.color;
             }
         };
+
+        // ── NETWORK TOPOLOGY MINI-PANEL ──
+        var topoWidget = document.createElement('div');
+        topoWidget.style.cssText = widgetCSS + 'min-height:160px;position:relative;overflow:hidden;';
+        topoWidget.innerHTML = '<div style="' + hdrCSS + '"><span style="color:#B986F2;font-size:10px;">◎</span> NETWORK MAP</div>';
+
+        // Topology canvas
+        var topoCanvas = document.createElement('canvas');
+        topoCanvas.id = 'hcc-sb-topo';
+        topoCanvas.style.cssText = 'width:100%;height:140px;display:block;';
+        topoWidget.appendChild(topoCanvas);
+        sidebar.appendChild(topoWidget);
+
+        // Draw topology nodes
+        setTimeout(function() {
+            var tc = document.getElementById('hcc-sb-topo');
+            if (!tc) return;
+            tc.width = tc.offsetWidth;
+            tc.height = 140;
+            var tCtx = tc.getContext('2d');
+            var nodes = [
+                { x: 0.5, y: 0.15, label: 'WAN', color: '#00d4ff', r: 5 },
+                { x: 0.5, y: 0.38, label: 'RB3011', color: '#FFD700', r: 6 },
+                { x: 0.18, y: 0.62, label: 'V10', color: '#00ff88', r: 4 },
+                { x: 0.42, y: 0.62, label: 'V20', color: '#ff6600', r: 4 },
+                { x: 0.65, y: 0.62, label: 'V30', color: '#ff2244', r: 4 },
+                { x: 0.85, y: 0.62, label: 'V40', color: '#B986F2', r: 4 },
+                { x: 0.18, y: 0.88, label: 'PCs', color: '#00ff88', r: 3 },
+                { x: 0.42, y: 0.88, label: 'SRV', color: '#ff6600', r: 3 },
+                { x: 0.65, y: 0.88, label: 'iDRAC', color: '#ff2244', r: 3 },
+                { x: 0.85, y: 0.88, label: 'RPi', color: '#B986F2', r: 3 }
+            ];
+            var links = [[0,1],[1,2],[1,3],[1,4],[1,5],[2,6],[3,7],[4,8],[5,9]];
+
+            function drawTopo() {
+                var w = tc.width, h = tc.height;
+                tCtx.clearRect(0, 0, w, h);
+                // Draw links
+                links.forEach(function(l) {
+                    var a = nodes[l[0]], b = nodes[l[1]];
+                    tCtx.beginPath();
+                    tCtx.moveTo(a.x * w, a.y * h);
+                    tCtx.lineTo(b.x * w, b.y * h);
+                    tCtx.strokeStyle = 'rgba(0,183,255,0.25)';
+                    tCtx.lineWidth = 1;
+                    tCtx.stroke();
+                });
+                // Draw nodes
+                var time = Date.now() * 0.001;
+                nodes.forEach(function(n, ni) {
+                    var nx = n.x * w, ny = n.y * h;
+                    var pulse = 0.7 + Math.sin(time + ni) * 0.3;
+                    // Glow
+                    tCtx.beginPath();
+                    tCtx.arc(nx, ny, n.r * 3, 0, Math.PI * 2);
+                    tCtx.fillStyle = n.color.replace(')', ',' + (pulse * 0.1) + ')').replace('rgb', 'rgba').replace('#', '');
+                    tCtx.fillStyle = 'rgba(' + hexToRgb(n.color) + ',' + (pulse * 0.12) + ')';
+                    tCtx.fill();
+                    // Core
+                    tCtx.beginPath();
+                    tCtx.arc(nx, ny, n.r, 0, Math.PI * 2);
+                    tCtx.fillStyle = n.color;
+                    tCtx.globalAlpha = pulse;
+                    tCtx.fill();
+                    tCtx.globalAlpha = 1;
+                    // Label
+                    tCtx.font = '7px "JetBrains Mono",monospace';
+                    tCtx.fillStyle = 'rgba(153,170,208,0.7)';
+                    tCtx.textAlign = 'center';
+                    tCtx.fillText(n.label, nx, ny + n.r + 10);
+                });
+                requestAnimationFrame(drawTopo);
+            }
+
+            function hexToRgb(hex) {
+                var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+                return r+','+g+','+b;
+            }
+            drawTopo();
+        }, 500);
 
         // ── SIDEBAR EFFECTS ──
         var sbEffects = document.getElementById('hcc-sb-effects');

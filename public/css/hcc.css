@@ -260,7 +260,7 @@ body {
 
 #hcc-header {
     position: fixed;
-    top: 0; left: 54px; width: calc(100% - 54px);
+    top: 0; left: 78px; width: calc(100% - 78px);
     height: 50px;
     background: rgba(3,6,16,0.97);
     border-bottom: 1px solid var(--border);
@@ -370,17 +370,20 @@ body {
     position: fixed;
     top: 50px;
     left: 0;
-    width: 54px;
+    width: 78px;
     height: calc(100vh - 50px - 28px);
     background: rgba(3,6,16,0.97);
     border-right: 1px solid var(--border);
     z-index: 999;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,183,255,0.2) transparent;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #hcc-sidebar:hover {
-    width: 240px;
+    width: 260px;
 }
 
 #hcc-sb-effects {
@@ -403,13 +406,13 @@ body {
 /* ── Sidebar Panel Items ──────────────────────────────── */
 
 .hcc-sb-item {
-    margin: 4px 5px;
+    margin: 5px 6px;
 }
 
 .hcc-sb-panel {
     display: flex;
     align-items: stretch;
-    min-height: 48px;
+    min-height: 68px;
     cursor: pointer;
     position: relative;
     transition: all 0.2s ease;
@@ -417,8 +420,8 @@ body {
 
 /* LEFT BOX — icon zone */
 .hcc-sb-iconzone {
-    width: 44px;
-    min-width: 44px;
+    width: 66px;
+    min-width: 66px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -430,8 +433,8 @@ body {
 
 /* Hex icon container */
 .hcc-sb-icon {
-    width: 34px;
-    height: 34px;
+    width: 46px;
+    height: 46px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -439,7 +442,7 @@ body {
     position: relative;
     z-index: 2;
     transition: all 0.25s ease;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: 1px;
 }
@@ -447,11 +450,11 @@ body {
 /* Index number */
 .hcc-sb-idx {
     position: absolute;
-    left: 5px;
-    bottom: 2px;
-    font-size: 8px;
-    letter-spacing: 1px;
-    opacity: 0.6;
+    left: 6px;
+    bottom: 3px;
+    font-size: 9px;
+    letter-spacing: 2px;
+    opacity: 0.65;
     z-index: 2;
     font-weight: 700;
 }
@@ -459,10 +462,10 @@ body {
 /* Active dot */
 .hcc-sb-dot {
     position: absolute;
-    top: 4px;
-    left: 4px;
-    width: 7px;
-    height: 7px;
+    top: 5px;
+    left: 5px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: var(--green);
     box-shadow: 0 0 6px var(--green), 0 0 12px rgba(0,255,136,0.4);
@@ -548,7 +551,7 @@ body {
 /* ── DASHBOARD GRID ────────────────────────────────────── */
 
 #hcc-main {
-    padding: 58px 8px 40px 62px;
+    padding: 58px 8px 40px 86px;
 }
 
 /* Page-hidden panels */
@@ -1160,7 +1163,7 @@ body.hcc-edit-mode .hcc-panel {
 
 #hcc-ticker {
     position: fixed;
-    bottom: 0; left: 54px; width: calc(100% - 54px);
+    bottom: 0; left: 78px; width: calc(100% - 78px);
     background: rgba(0,0,0,0.95);
     border-top: 1px solid rgba(255,34,68,0.3);
     display: flex;
