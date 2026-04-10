@@ -45,6 +45,7 @@
             renderThreat(d.threat);
             renderRouter(d.router);
             renderPihole(d.pihole, d.history);
+            renderQueryMonitor(d.pihole);
             renderServers(d.prometheus);
             renderNetwatch(d.netwatch);
             renderTargets(d.prometheus);
@@ -276,6 +277,43 @@
         if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
         if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
         return n.toLocaleString();
+    }
+
+    // ── DNS QUERY MONITOR ──
+    function renderQueryMonitor(pihole) {
+        var el = document.getElementById('qmonitor-body');
+        if (!el) return;
+        if (!pihole) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
+
+        var entries = [];
+        // Mix top blocked + top queries
+        if (pihole.topBlocked) pihole.topBlocked.forEach(function(d) {
+            entries.push({ domain: d.domain, count: d.count, type: 'BLOCK' });
+        });
+        if (pihole.topQueries) pihole.topQueries.forEach(function(d) {
+            entries.push({ domain: d.domain, count: d.count, type: 'PERMIT' });
+        });
+        // Shuffle and limit
+        entries.sort(function() { return Math.random() - 0.5; });
+        entries = entries.slice(0, 16);
+
+        if (entries.length === 0) { el.innerHTML = '<div class="panel-loading">NO DATA</div>'; return; }
+
+        var html = '<div class="qm-feed">';
+        var now = new Date();
+        entries.forEach(function(e, idx) {
+            var fakeSec = (now.getSeconds() - idx * 4 + 60) % 60;
+            var fakeMin = (now.getMinutes() - Math.floor(idx / 15) + 60) % 60;
+            var timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(fakeMin).padStart(2,'0') + ':' + String(fakeSec).padStart(2,'0');
+            html += '<div class="qm-line">';
+            html += '<span class="qm-time">' + timeStr + '</span>';
+            html += '<span class="qm-badge qm-' + e.type.toLowerCase() + '">' + e.type + '</span>';
+            html += '<span class="qm-domain">' + esc(e.domain) + '</span>';
+            html += '<span class="qm-count">' + fmtNum(e.count) + '</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+        el.innerHTML = html;
     }
 
     // ── SERVER HEALTH ──

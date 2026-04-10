@@ -1058,6 +1058,66 @@ body.hcc-edit-mode .hcc-panel {
     font-size: 0.8rem;
 }
 
+/* ── DNS QUERY MONITOR ───────────────────────────────── */
+
+.qm-feed {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.7;
+}
+
+.qm-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(22,34,66,0.3);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.qm-line:last-child { border-bottom: none; }
+
+.qm-time {
+    color: #6688aa;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.qm-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 1px 6px;
+    flex-shrink: 0;
+}
+
+.qm-badge.qm-block {
+    color: var(--red);
+    background: rgba(255,34,68,0.12);
+    text-shadow: 0 0 6px rgba(255,34,68,0.4);
+}
+
+.qm-badge.qm-permit {
+    color: var(--green);
+    background: rgba(0,255,136,0.08);
+    text-shadow: 0 0 6px rgba(0,255,136,0.4);
+}
+
+.qm-domain {
+    color: var(--text-bright);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.qm-count {
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
 /* ── SERVER BLOCKS ─────────────────────────────────────── */
 
 .server-block {
