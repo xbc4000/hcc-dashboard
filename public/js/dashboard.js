@@ -638,15 +638,54 @@
         html += '<div class="cc-section-label">NOW STREAMING (LOCAL)</div>';
         html += '<div id="cc-spbr-now" class="cc-empty">Bridge idle — start playing on this device from any Spotify client</div>';
         html += '<div class="cc-divider"></div>';
-        html += '<div class="cc-section-label">NAD CEC CONTROL <span id="cc-spbr-cec-status" style="color:var(--text-muted);font-weight:400;margin-left:8px;">checking...</span></div>';
+        html += '<div class="cc-section-label">NAD-AVR REMOTE <span id="cc-spbr-cec-status" style="color:var(--text-muted);font-weight:400;margin-left:8px;">checking...</span></div>';
+        // Volume row
         html += '<div class="cc-row" style="gap:6px;">';
-        html += '<button id="cc-spbr-cec-down" class="cc-btn cc-btn-cec">VOL −</button>';
-        html += '<button id="cc-spbr-cec-mute" class="cc-btn cc-btn-cec">MUTE</button>';
-        html += '<button id="cc-spbr-cec-up" class="cc-btn cc-btn-cec">VOL +</button>';
+        html += '<button data-cec-key="volume-down" class="cc-btn cc-btn-cec cec-key">VOL −</button>';
+        html += '<button data-cec-key="mute" class="cc-btn cc-btn-cec cec-key">MUTE</button>';
+        html += '<button data-cec-key="volume-up" class="cc-btn cc-btn-cec cec-key">VOL +</button>';
         html += '</div>';
+        // Power row
         html += '<div class="cc-row" style="gap:6px;">';
-        html += '<button id="cc-spbr-cec-poweron" class="cc-btn">POWER ON</button>';
-        html += '<button id="cc-spbr-cec-poweroff" class="cc-btn cc-btn-warn">STANDBY</button>';
+        html += '<button data-cec-pwr="on" class="cc-btn cec-pwr">POWER ON</button>';
+        html += '<button data-cec-pwr="off" class="cc-btn cc-btn-warn cec-pwr">STANDBY</button>';
+        html += '<button data-cec-key="display-information" class="cc-btn cec-key">INFO</button>';
+        html += '</div>';
+        // D-pad
+        html += '<div class="cec-dpad">';
+        html += '<button data-cec-key="up" class="cc-btn cec-key dpad-up">▲</button>';
+        html += '<button data-cec-key="left" class="cc-btn cec-key dpad-left">◀</button>';
+        html += '<button data-cec-key="select" class="cc-btn cec-key dpad-ok">OK</button>';
+        html += '<button data-cec-key="right" class="cc-btn cec-key dpad-right">▶</button>';
+        html += '<button data-cec-key="down" class="cc-btn cec-key dpad-down">▼</button>';
+        html += '</div>';
+        // Menu row
+        html += '<div class="cc-row" style="gap:6px;">';
+        html += '<button data-cec-key="root-menu" class="cc-btn cec-key">MENU</button>';
+        html += '<button data-cec-key="contents-menu" class="cc-btn cec-key">CONTENTS</button>';
+        html += '<button data-cec-key="exit" class="cc-btn cec-key">BACK</button>';
+        html += '</div>';
+        // Transport
+        html += '<div class="cc-row" style="gap:6px;">';
+        html += '<button data-cec-key="rewind" class="cc-btn cec-key">⏪</button>';
+        html += '<button data-cec-key="play" class="cc-btn cec-key">▶</button>';
+        html += '<button data-cec-key="pause" class="cc-btn cec-key">⏸</button>';
+        html += '<button data-cec-key="stop" class="cc-btn cec-key">⏹</button>';
+        html += '<button data-cec-key="fast-forward" class="cc-btn cec-key">⏩</button>';
+        html += '</div>';
+        // Source select
+        html += '<div class="cc-section-label" style="margin-top:8px;">SOURCES (HDMI)</div>';
+        html += '<div class="cc-row" style="gap:6px;flex-wrap:wrap;">';
+        html += '<button data-cec-source="1.0.0.0" class="cc-btn cec-src">HDMI 1</button>';
+        html += '<button data-cec-source="2.0.0.0" class="cc-btn cec-src">HDMI 2</button>';
+        html += '<button data-cec-source="3.0.0.0" class="cc-btn cec-src">HDMI 3</button>';
+        html += '<button data-cec-source="4.0.0.0" class="cc-btn cec-src">HDMI 4</button>';
+        html += '<button data-cec-source="1.2.0.0" class="cc-btn cec-src">RPi (us)</button>';
+        html += '</div>';
+        // Raw key input for power users
+        html += '<div class="cc-row" style="gap:6px;margin-top:6px;">';
+        html += '<input type="text" id="cc-spbr-cec-rawkey" class="cc-input" placeholder="custom ui-cmd (e.g. number-1, channel-up)" />';
+        html += '<button id="cc-spbr-cec-rawsend" class="cc-btn">SEND</button>';
         html += '</div>';
         html += '<div class="cc-divider"></div>';
         html += '<div class="cc-row">';
@@ -827,20 +866,48 @@
             setTimeout(function () { fetchStatus(); fetchLogs(); }, 2500);
         });
 
-        // ── CEC button handlers ──
-        async function cecPost(path, label) {
+        // ── CEC button handlers (delegated) ──
+        async function cecPost(path, label, body) {
             var url = urlEl.value.trim().replace(/\/$/, '');
             try {
-                var res = await fetch(url + path, { method: 'POST', signal: AbortSignal.timeout(3000) });
+                var opts = { method: 'POST', signal: AbortSignal.timeout(3000) };
+                if (body) {
+                    opts.headers = { 'Content-Type': 'application/json' };
+                    opts.body = JSON.stringify(body);
+                }
+                var res = await fetch(url + path, opts);
                 if (res.ok) spbrLog('CEC ' + label + ' OK', 'ok');
                 else spbrLog('CEC ' + label + ' failed: HTTP ' + res.status, 'err');
             } catch (e) { spbrLog('CEC ' + label + ' error: ' + e.message, 'err'); }
         }
-        document.getElementById('cc-spbr-cec-up').addEventListener('click', function () { cecPost('/cec/vol/up', 'vol+'); });
-        document.getElementById('cc-spbr-cec-down').addEventListener('click', function () { cecPost('/cec/vol/down', 'vol−'); });
-        document.getElementById('cc-spbr-cec-mute').addEventListener('click', function () { cecPost('/cec/mute', 'mute'); });
-        document.getElementById('cc-spbr-cec-poweron').addEventListener('click', function () { cecPost('/cec/power/on', 'power on'); });
-        document.getElementById('cc-spbr-cec-poweroff').addEventListener('click', function () { cecPost('/cec/power/off', 'standby'); });
+        // Delegated click — any button with data-cec-key/pwr/source under the bridge card
+        document.getElementById('panel-control').addEventListener('click', function (ev) {
+            var t = ev.target;
+            if (!t || !t.tagName) return;
+            // Volume + mute via /cec/vol/* (faster path with our swap logic)
+            if (t.dataset && t.dataset.cecKey === 'volume-up') { cecPost('/cec/vol/up', 'vol+'); return; }
+            if (t.dataset && t.dataset.cecKey === 'volume-down') { cecPost('/cec/vol/down', 'vol−'); return; }
+            if (t.dataset && t.dataset.cecKey === 'mute') { cecPost('/cec/mute', 'mute'); return; }
+            // Generic remote keys
+            if (t.dataset && t.dataset.cecKey) {
+                cecPost('/cec/remote/' + encodeURIComponent(t.dataset.cecKey), 'key:' + t.dataset.cecKey);
+                return;
+            }
+            // Power
+            if (t.dataset && t.dataset.cecPwr === 'on') { cecPost('/cec/power/on', 'power on'); return; }
+            if (t.dataset && t.dataset.cecPwr === 'off') { cecPost('/cec/power/off', 'standby'); return; }
+            // Source switch
+            if (t.dataset && t.dataset.cecSource) {
+                cecPost('/cec/source/set', 'source ' + t.dataset.cecSource, { phys_addr: t.dataset.cecSource });
+                return;
+            }
+        });
+        // Raw key input
+        document.getElementById('cc-spbr-cec-rawsend').addEventListener('click', function () {
+            var k = document.getElementById('cc-spbr-cec-rawkey').value.trim();
+            if (!k) return;
+            cecPost('/cec/remote/' + encodeURIComponent(k), 'raw:' + k);
+        });
 
         refreshBtn.addEventListener('click', function () {
             fetchStatus();

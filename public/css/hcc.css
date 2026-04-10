@@ -1318,6 +1318,58 @@ body.hcc-edit-mode .hcc-panel {
     background: rgba(29,185,84,0.2);
     transform: scale(0.97);
 }
+/* CEC remote keys (smaller than vol buttons) */
+.cec-key {
+    flex: 1;
+    font-size: 0.75rem;
+    padding: 8px 10px;
+}
+.cec-key:active { transform: scale(0.95); }
+/* CEC source select */
+.cec-src {
+    flex: 0 0 auto;
+    min-width: 80px;
+    font-size: 0.7rem;
+    padding: 8px 12px;
+}
+/* D-pad layout */
+.cec-dpad {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 6px;
+    margin: 8px auto;
+    max-width: 220px;
+    aspect-ratio: 1.2;
+}
+.dpad-up    { grid-column: 2; grid-row: 1; }
+.dpad-left  { grid-column: 1; grid-row: 2; }
+.dpad-ok    { grid-column: 2; grid-row: 2; font-weight: 800; font-size: 0.9rem; }
+.dpad-right { grid-column: 3; grid-row: 2; }
+.dpad-down  { grid-column: 2; grid-row: 3; }
+.cec-dpad .cec-key {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    padding: 12px 0;
+    font-size: 1rem;
+}
+.cec-dpad .cec-key:hover {
+    background: rgba(0,183,255,0.1);
+    box-shadow: 0 0 12px rgba(0,183,255,0.3);
+}
+.cec-dpad .dpad-ok {
+    border-color: var(--magenta);
+    color: var(--magenta);
+}
+.cec-dpad .dpad-ok:hover {
+    background: rgba(255,0,178,0.12);
+    box-shadow: 0 0 14px rgba(255,0,178,0.4);
+}
+/* Power buttons distinct */
+.cec-pwr {
+    flex: 1;
+    padding: 10px 14px;
+}
 .cc-btn-action { flex: 1; }
 .cc-btn-link { width: 100%; }
 
