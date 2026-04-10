@@ -673,14 +673,22 @@
         html += '<button data-cec-key="stop" class="cc-btn cec-key">⏹</button>';
         html += '<button data-cec-key="fast-forward" class="cc-btn cec-key">⏩</button>';
         html += '</div>';
-        // Source select
-        html += '<div class="cc-section-label" style="margin-top:8px;">SOURCES (HDMI)</div>';
+        // Source select — addresses are HDMI inputs of the NAD, NOT siblings on TV.
+        // NAD is at 1.0.0.0, so its inputs are 1.1.0.0 / 1.2.0.0 / etc.
+        // Pi is on HDMI 2 of NAD (1.2.0.0).
+        html += '<div class="cc-section-label" style="margin-top:8px;">SOURCES (NAD HDMI INPUTS)</div>';
         html += '<div class="cc-row" style="gap:6px;flex-wrap:wrap;">';
-        html += '<button data-cec-source="1.0.0.0" class="cc-btn cec-src">HDMI 1</button>';
-        html += '<button data-cec-source="2.0.0.0" class="cc-btn cec-src">HDMI 2</button>';
-        html += '<button data-cec-source="3.0.0.0" class="cc-btn cec-src">HDMI 3</button>';
-        html += '<button data-cec-source="4.0.0.0" class="cc-btn cec-src">HDMI 4</button>';
-        html += '<button data-cec-source="1.2.0.0" class="cc-btn cec-src">RPi (us)</button>';
+        html += '<button data-cec-source="1.1.0.0" class="cc-btn cec-src">HDMI 1</button>';
+        html += '<button data-cec-source="1.2.0.0" class="cc-btn cec-src">HDMI 2 (RPi)</button>';
+        html += '<button data-cec-source="1.3.0.0" class="cc-btn cec-src">HDMI 3</button>';
+        html += '<button data-cec-source="1.4.0.0" class="cc-btn cec-src">HDMI 4</button>';
+        html += '</div>';
+        // Send via active-source broadcast (some AVRs only respond to that, not set-stream-path)
+        html += '<div class="cc-row" style="gap:6px;flex-wrap:wrap;margin-top:4px;">';
+        html += '<button data-cec-active="1.1.0.0" class="cc-btn cec-src">↗ HDMI1 active</button>';
+        html += '<button data-cec-active="1.2.0.0" class="cc-btn cec-src">↗ HDMI2 active</button>';
+        html += '<button data-cec-active="1.3.0.0" class="cc-btn cec-src">↗ HDMI3 active</button>';
+        html += '<button data-cec-active="1.4.0.0" class="cc-btn cec-src">↗ HDMI4 active</button>';
         html += '</div>';
         // Raw key input for power users
         html += '<div class="cc-row" style="gap:6px;margin-top:6px;">';
@@ -897,9 +905,14 @@
             // Power
             if (t.dataset && t.dataset.cecPwr === 'on') { cecPost('/cec/power/on', 'power on'); return; }
             if (t.dataset && t.dataset.cecPwr === 'off') { cecPost('/cec/power/off', 'standby'); return; }
-            // Source switch
+            // Source switch via set-stream-path (directed to AVR)
             if (t.dataset && t.dataset.cecSource) {
                 cecPost('/cec/source/set', 'source ' + t.dataset.cecSource, { phys_addr: t.dataset.cecSource });
+                return;
+            }
+            // Source switch via active-source broadcast (some AVRs only honor this)
+            if (t.dataset && t.dataset.cecActive) {
+                cecPost('/cec/source/active', 'active ' + t.dataset.cecActive, { phys_addr: t.dataset.cecActive });
                 return;
             }
         });
