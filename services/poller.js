@@ -114,23 +114,29 @@ class Poller {
         } catch (err) { this.cache.grafana.status = 'down'; this.cache.grafana.lastPoll = Date.now(); }
     }
 
-    checkUrl(url) {
+    checkUrlOnce(url) {
         return new Promise(function(resolve) {
             if (url.startsWith('https://')) {
-                // iDRAC uses self-signed certs — use https.get directly
                 var https = require('https');
-                var req = https.get(url, { rejectUnauthorized: false, timeout: 5000 }, function(res) {
+                var req = https.get(url, { rejectUnauthorized: false, timeout: 10000 }, function(res) {
                     res.resume();
                     resolve(res.statusCode < 500 ? 'up' : 'down');
                 });
                 req.on('error', function() { resolve('down'); });
                 req.on('timeout', function() { req.destroy(); resolve('down'); });
             } else {
-                fetch(url, { signal: AbortSignal.timeout(5000) }).then(function(res) {
+                fetch(url, { signal: AbortSignal.timeout(10000) }).then(function(res) {
                     resolve(res.ok || res.status === 401 || res.status === 403 ? 'up' : 'down');
                 }).catch(function() { resolve('down'); });
             }
         });
+    }
+
+    async checkUrl(url) {
+        var status = await this.checkUrlOnce(url);
+        // Retry once on failure (iDRAC can be slow)
+        if (status === 'down') status = await this.checkUrlOnce(url);
+        return status;
     }
 
     async pollLinks() {
