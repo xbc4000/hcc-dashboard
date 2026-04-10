@@ -43,6 +43,7 @@
             <div class="header-divider"></div>
             <button id="hcc-edit-btn" class="hcc-header-btn">EDIT</button>
             <button id="hcc-reset-btn" class="hcc-header-btn reset" style="display:none;">RESET</button>
+            <button id="hcc-kiosk-btn" class="hcc-header-btn" title="Kiosk Mode (F11)">KIOSK</button>
             <div class="header-divider"></div>
             <span style="color:var(--orange);letter-spacing:3px;font-weight:700;font-size:0.7rem;">SESSION</span>
             <span id="hcc-session" style="color:var(--orange);font-weight:800;letter-spacing:3px;">00:00</span>
@@ -146,6 +147,24 @@
                     <section class="hcc-panel" id="panel-logs">
                         <div class="hcc-panel-header"><div class="dot" style="background:var(--orange);box-shadow:0 0 6px var(--orange);"></div>ROUTER LOG</div>
                         <div class="hcc-panel-body" id="logs-body"><div class="panel-loading">CONNECTING...</div></div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="grid-stack-item" gs-id="control" gs-w="12" gs-h="12" gs-min-w="6" gs-min-h="6" data-pages="control">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-control">
+                        <div class="hcc-panel-header"><div class="dot"></div>CONTROL CENTER // INTEGRATIONS</div>
+                        <div class="hcc-panel-body" id="control-body"></div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="grid-stack-item" gs-id="per730" gs-w="12" gs-h="10" gs-min-w="6" gs-min-h="6" data-pages="per730">
+                <div class="grid-stack-item-content">
+                    <section class="hcc-panel" id="panel-per730">
+                        <div class="hcc-panel-header"><div class="dot"></div>PER730XD — DELL POWEREDGE R730XD // FULL DETAIL</div>
+                        <div class="hcc-panel-body" id="per730-body"><div class="panel-loading">CONNECTING...</div></div>
                     </section>
                 </div>
             </div>

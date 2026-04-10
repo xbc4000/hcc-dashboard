@@ -47,6 +47,7 @@
             renderPihole(d.pihole, d.history);
             renderQueryMonitor(d.pihole);
             renderServers(d.prometheus);
+            renderPer730(d.prometheus);
             renderNetwatch(d.netwatch);
             renderTargets(d.prometheus);
             renderFirewall(d.firewall, d.addressLists);
@@ -277,6 +278,613 @@
         if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
         if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
         return n.toLocaleString();
+    }
+
+    // ── PER730XD DEDICATED PAGE ──
+    function renderPer730(promData) {
+        var el = document.getElementById('per730-body');
+        if (!el) return;
+        if (!promData || !promData.servers || !promData.servers.per730xd) {
+            el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>';
+            return;
+        }
+        var s = promData.servers.per730xd;
+        var hColor = s.health === 'OK' ? 'var(--green)' : 'var(--red)';
+        var pp = s.powerCap ? (s.power / s.powerCap * 100) : 0;
+
+        var html = '<div class="per730-grid">';
+
+        // ── Hero card ──
+        html += '<div class="per730-hero">';
+        html += '<div class="per730-hero-left">';
+        html += '<div class="status-dot-sm '+(s.status==='up'?'up':'down')+'" style="width:14px;height:14px;"></div>';
+        html += '<div><div class="per730-name">'+esc(s.name)+'</div>';
+        html += '<div class="per730-model">'+esc(s.model || 'Dell PowerEdge R730XD')+'</div>';
+        if (s.serial) html += '<div class="per730-serial">SN: '+esc(s.serial)+'</div>';
+        html += '</div></div>';
+        html += '<div class="per730-hero-right">';
+        html += '<div class="per730-health" style="color:'+hColor+';border-color:'+hColor+';text-shadow:0 0 12px '+hColor+';">'+esc(s.health)+'</div>';
+        html += '<div class="per730-instance">'+esc(s.instance || '10.30.30.10')+'</div>';
+        html += '</div></div>';
+
+        // ── Top stat boxes ──
+        html += '<div class="stat-grid stat-grid-4" style="margin-top:14px;">';
+        html += statBox('POWER', (s.power||0)+'W', 'orange');
+        html += statBox('TEMP', (s.temp!==null?s.temp+'°C':'---'), s.temp<35?'green':'orange');
+        html += statBox('FAN AVG', s.fanSpeed?fmtNum(s.fanSpeed)+' RPM':'---', 'cyan');
+        html += statBox('RAM', (s.totalRamGB||'--')+' GB', 'cyan');
+        html += '</div>';
+
+        // ── 2-column layout for sections ──
+        html += '<div class="per730-cols">';
+
+        // ── LEFT COLUMN ──
+        html += '<div class="per730-col">';
+
+        // POWER detail
+        if (s.power !== null && s.power !== undefined) {
+            html += '<div class="per730-section">';
+            html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--orange);"></span>POWER CONSUMPTION</div>';
+            html += '<div class="per730-power-row">';
+            html += '<div class="per730-power-stat"><div class="per730-power-label">CURRENT</div><div class="per730-power-val" style="color:var(--orange);">'+(s.power||0)+'W</div></div>';
+            if (s.powerAvg !== null) html += '<div class="per730-power-stat"><div class="per730-power-label">AVG</div><div class="per730-power-val" style="color:var(--gold);">'+s.powerAvg+'W</div></div>';
+            if (s.powerMin !== null) html += '<div class="per730-power-stat"><div class="per730-power-label">MIN</div><div class="per730-power-val" style="color:var(--green);">'+s.powerMin+'W</div></div>';
+            if (s.powerMax !== null) html += '<div class="per730-power-stat"><div class="per730-power-label">MAX</div><div class="per730-power-val" style="color:var(--red);">'+s.powerMax+'W</div></div>';
+            if (s.powerCap !== null) html += '<div class="per730-power-stat"><div class="per730-power-label">CAP</div><div class="per730-power-val" style="color:var(--text-muted);">'+s.powerCap+'W</div></div>';
+            html += '</div>';
+            if (s.powerCap) {
+                html += '<div class="progress-wrap" style="height:10px;margin-top:6px;"><div class="progress-fill '+lvl(pp)+'" style="width:'+pp+'%;"></div></div>';
+                html += '<div style="text-align:right;font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'+pp.toFixed(1)+'% of cap</div>';
+            }
+            html += '</div>';
+        }
+
+        // CPU detail
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--cyan);"></span>CPU</div>';
+        html += '<div class="per730-kv">';
+        if (s.cpuCount !== null) html += row('Sockets', '<span style="color:var(--cyan-bright);">'+s.cpuCount+'</span>');
+        if (s.cpuCores !== null) html += row('Cores', '<span style="color:var(--cyan-bright);">'+s.cpuCores+'</span>');
+        if (s.cpuThreads !== null) html += row('Threads', '<span style="color:var(--cyan-bright);">'+s.cpuThreads+'</span>');
+        html += '</div>';
+        if (s.cpus && s.cpus.length > 0) {
+            s.cpus.forEach(function(c) {
+                html += '<div class="per730-list-item">';
+                html += '<span class="per730-list-id">'+esc(c.id)+'</span>';
+                html += '<span class="per730-list-detail">'+esc(c.model || 'Unknown')+'</span>';
+                html += '</div>';
+            });
+        }
+        html += '</div>';
+
+        // MEMORY detail
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--cyan-bright);"></span>MEMORY</div>';
+        if (s.dimms && s.dimms.length > 0) {
+            html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">'+s.dimms.length+' DIMMs · '+s.totalRamGB+' GB total</div>';
+            s.dimms.forEach(function(d) {
+                var hc = d.healthy === false ? 'var(--red)' : 'var(--green)';
+                html += '<div class="per730-list-item">';
+                html += '<span class="per730-list-id">'+esc(d.slot)+'</span>';
+                html += '<span class="per730-list-detail">';
+                if (d.capacityGB) html += '<span style="color:var(--text-bright);">'+d.capacityGB+'GB</span> ';
+                if (d.speedMHz) html += '<span style="color:var(--text-muted);">'+d.speedMHz+'MHz</span> ';
+                if (d.type) html += '<span style="color:var(--text-muted);">'+esc(d.type)+'</span> ';
+                if (d.vendor) html += '<span style="color:var(--text-muted);">'+esc(d.vendor)+'</span>';
+                html += '</span>';
+                if (d.healthy !== null) html += '<span style="color:'+hc+';font-size:0.7rem;">●</span>';
+                html += '</div>';
+            });
+        } else {
+            html += '<div class="per730-kv">';
+            html += row('Total', '<span style="color:var(--cyan-bright);">'+(s.totalRamGB||'--')+' GB</span>');
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // POWER SUPPLIES
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--orange);"></span>POWER SUPPLIES</div>';
+        if (s.psus && s.psus.length > 0) {
+            s.psus.forEach(function(p) {
+                var hc = p.healthy ? 'var(--green)' : 'var(--red)';
+                html += '<div class="per730-list-item">';
+                html += '<span class="per730-list-id">'+esc(p.name || p.id)+'</span>';
+                html += '<span class="per730-list-detail">';
+                if (p.voltage) html += '<span style="color:var(--orange);">'+p.voltage.toFixed(0)+'V</span>';
+                html += '</span>';
+                html += '<span style="color:'+hc+';font-size:0.7rem;">●</span>';
+                html += '</div>';
+            });
+        } else {
+            html += '<div class="per730-kv">';
+            var pc = s.psuHealthy === s.psu ? 'var(--green)' : 'var(--red)';
+            html += row('Status', '<span style="color:'+pc+';">'+s.psuHealthy+' / '+s.psu+' Healthy</span>');
+            html += '</div>';
+        }
+        html += '</div>';
+
+        html += '</div>'; // end LEFT col
+
+        // ── RIGHT COLUMN ──
+        html += '<div class="per730-col">';
+
+        // STORAGE — drives
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--purple);"></span>STORAGE DRIVES</div>';
+        if (s.drivesDetail && s.drivesDetail.length > 0) {
+            html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">'+s.drivesDetail.length+' drives · '+s.drivesHealthy+' healthy</div>';
+            s.drivesDetail.forEach(function(d) {
+                var hc = d.healthy ? 'var(--green)' : 'var(--red)';
+                var lifeColor = d.lifePercent>=80?'var(--green)':(d.lifePercent>=50?'var(--orange)':'var(--red)');
+                html += '<div class="per730-list-item">';
+                html += '<span class="per730-list-id">'+esc(d.id)+'</span>';
+                html += '<span class="per730-list-detail">';
+                if (d.capacityGB) html += '<span style="color:var(--text-bright);">'+d.capacityGB+'GB</span> ';
+                if (d.protocol) html += '<span style="color:var(--text-muted);">'+esc(d.protocol)+'</span> ';
+                if (d.model) html += '<span style="color:var(--text-muted);">'+esc(d.model)+'</span>';
+                if (d.lifePercent !== null) html += ' <span style="color:'+lifeColor+';">'+d.lifePercent+'%</span>';
+                html += '</span>';
+                html += '<span style="color:'+hc+';font-size:0.7rem;">●</span>';
+                html += '</div>';
+            });
+        } else {
+            var dc = s.drivesHealthy === s.drives ? 'var(--green)' : 'var(--red)';
+            html += '<div class="per730-kv">';
+            html += row('Status', '<span style="color:'+dc+';">'+s.drivesHealthy+' / '+s.drives+' Healthy</span>');
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // RAID VOLUMES
+        if (s.volumes && s.volumes.length > 0) {
+            html += '<div class="per730-section">';
+            html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--purple);"></span>RAID VOLUMES</div>';
+            s.volumes.forEach(function(v) {
+                var hc = v.healthy ? 'var(--green)' : 'var(--red)';
+                html += '<div class="per730-list-item">';
+                html += '<span class="per730-list-id">'+esc(v.name || v.id)+'</span>';
+                html += '<span class="per730-list-detail">';
+                if (v.raid) html += '<span style="color:var(--purple);">'+esc(v.raid)+'</span> ';
+                if (v.capacityGB) html += '<span style="color:var(--text-bright);">'+v.capacityGB+'GB</span> ';
+                if (v.spans) html += '<span style="color:var(--text-muted);">'+v.spans+' spans</span>';
+                html += '</span>';
+                html += '<span style="color:'+hc+';font-size:0.7rem;">●</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // THERMAL — all sensors
+        if (s.temps && s.temps.length > 0) {
+            html += '<div class="per730-section">';
+            html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--red);"></span>THERMAL SENSORS</div>';
+            s.temps.forEach(function(t) {
+                var tc = t.value < 35 ? 'var(--green)' : (t.value < 60 ? 'var(--orange)' : 'var(--red)');
+                html += '<div class="per730-list-item">';
+                html += '<span class="per730-list-id">'+esc(t.name)+'</span>';
+                html += '<span style="color:'+tc+';font-weight:700;">'+t.value.toFixed(0)+'°C</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // FANS
+        if (s.fans && s.fans.length > 0) {
+            html += '<div class="per730-section">';
+            html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--cyan);"></span>FANS</div>';
+            s.fans.forEach(function(f) {
+                html += '<div class="per730-list-item">';
+                html += '<span class="per730-list-id">'+esc(f.name)+'</span>';
+                html += '<span style="color:var(--cyan-bright);font-weight:700;">'+fmtNum(Math.round(f.rpm))+' RPM</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // NETWORK PORTS
+        if (s.nics && s.nics.length > 0) {
+            html += '<div class="per730-section">';
+            html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--green);"></span>NETWORK PORTS</div>';
+            s.nics.forEach(function(n) {
+                var lc = n.linkUp ? 'var(--green)' : 'var(--red)';
+                html += '<div class="per730-list-item">';
+                html += '<span class="per730-list-id">'+esc(n.name)+'</span>';
+                html += '<span class="per730-list-detail">';
+                if (n.speedMbps) html += '<span style="color:var(--text-bright);">'+n.speedMbps+' Mbps</span>';
+                html += '</span>';
+                html += '<span style="color:'+lc+';font-size:0.7rem;">●</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        html += '</div>'; // end RIGHT col
+        html += '</div>'; // end cols
+
+        // ── Quick actions ──
+        html += '<div class="per730-section" style="margin-top:14px;">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--cyan);"></span>QUICK ACTIONS</div>';
+        html += '<div class="per730-actions">';
+        html += '<a href="https://10.30.30.10" target="_blank" class="per730-action"><span class="per730-action-icon">⌘</span><span>iDRAC</span></a>';
+        html += '<a href="https://10.30.30.10/restgui/start.html#/console" target="_blank" class="per730-action"><span class="per730-action-icon">▦</span><span>CONSOLE</span></a>';
+        html += '<a href="https://10.30.30.10/restgui/start.html#/storage" target="_blank" class="per730-action"><span class="per730-action-icon">▤</span><span>STORAGE</span></a>';
+        html += '<a href="https://10.30.30.10/restgui/start.html#/power" target="_blank" class="per730-action"><span class="per730-action-icon">⚡</span><span>POWER</span></a>';
+        html += '</div></div>';
+
+        html += '</div>'; // end grid
+        el.innerHTML = html;
+    }
+
+    // ── CONTROL CENTER ──
+    function renderControl() {
+        var el = document.getElementById('control-body');
+        if (!el || el.dataset.built === '1') return;
+        el.dataset.built = '1';
+
+        var html = '<div class="cc-grid">';
+
+        // ── OBS WebSocket Controller ──
+        html += '<div class="cc-card cc-obs">';
+        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:var(--cyan-bright);">◉</span><span class="cc-card-title">OBS STUDIO</span><span id="cc-obs-status" class="cc-card-status">DISCONNECTED</span></div>';
+        html += '<div class="cc-card-body">';
+        html += '<div class="cc-row"><input type="text" id="cc-obs-host" placeholder="ws://10.10.10.2:4455" class="cc-input" /></div>';
+        html += '<div class="cc-row"><input type="password" id="cc-obs-pass" placeholder="WebSocket password" class="cc-input" /></div>';
+        html += '<div class="cc-row"><button id="cc-obs-connect" class="cc-btn">CONNECT</button><button id="cc-obs-disconnect" class="cc-btn cc-btn-warn">DISCONNECT</button></div>';
+        html += '<div class="cc-divider"></div>';
+        html += '<div class="cc-section-label">SCENES</div>';
+        html += '<div id="cc-obs-scenes" class="cc-scenes"><div class="cc-empty">Connect to load scenes</div></div>';
+        html += '<div class="cc-divider"></div>';
+        html += '<div class="cc-section-label">STREAM / RECORD</div>';
+        html += '<div class="cc-row">';
+        html += '<button id="cc-obs-stream" class="cc-btn cc-btn-action">START STREAM</button>';
+        html += '<button id="cc-obs-record" class="cc-btn cc-btn-action">START REC</button>';
+        html += '</div>';
+        html += '<div class="cc-row">';
+        html += '<div class="cc-stat"><span class="cc-stat-label">STREAM</span><span id="cc-obs-stream-status" class="cc-stat-val">OFFLINE</span></div>';
+        html += '<div class="cc-stat"><span class="cc-stat-label">REC</span><span id="cc-obs-rec-status" class="cc-stat-val">OFFLINE</span></div>';
+        html += '<div class="cc-stat"><span class="cc-stat-label">FPS</span><span id="cc-obs-fps" class="cc-stat-val">--</span></div>';
+        html += '<div class="cc-stat"><span class="cc-stat-label">CPU</span><span id="cc-obs-cpu" class="cc-stat-val">--</span></div>';
+        html += '</div>';
+        html += '</div></div>';
+
+        // ── Spotify ──
+        html += '<div class="cc-card cc-spotify">';
+        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:#1DB954;">♪</span><span class="cc-card-title">SPOTIFY</span><span class="cc-card-status">EMBED</span></div>';
+        html += '<div class="cc-card-body">';
+        html += '<div class="cc-row"><input type="text" id="cc-spotify-uri" placeholder="spotify:playlist:... or share URL" class="cc-input" /></div>';
+        html += '<div class="cc-row"><button id="cc-spotify-load" class="cc-btn">LOAD</button></div>';
+        html += '<div id="cc-spotify-embed" style="margin-top:10px;min-height:80px;"><div class="cc-empty">Paste a Spotify URI/URL to embed</div></div>';
+        html += '</div></div>';
+
+        // ── Govee Lights ──
+        html += '<div class="cc-card cc-govee">';
+        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:#B986F2;">✦</span><span class="cc-card-title">GOVEE LIGHTS</span><span id="cc-govee-status" class="cc-card-status">NOT CONFIGURED</span></div>';
+        html += '<div class="cc-card-body">';
+        html += '<div class="cc-row"><input type="password" id="cc-govee-key" placeholder="Govee API key" class="cc-input" /></div>';
+        html += '<div class="cc-row"><button id="cc-govee-save" class="cc-btn">SAVE & LOAD DEVICES</button></div>';
+        html += '<div id="cc-govee-devices" class="cc-devices"><div class="cc-empty">Enter API key to load devices</div></div>';
+        html += '</div></div>';
+
+        // ── Dell OpenManage / iDRAC quick links ──
+        html += '<div class="cc-card cc-dell">';
+        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:var(--cyan);">▣</span><span class="cc-card-title">DELL OPENMANAGE</span><span class="cc-card-status">LINKS</span></div>';
+        html += '<div class="cc-card-body">';
+        html += '<div class="cc-row"><a href="https://10.30.30.10" target="_blank" class="cc-btn cc-btn-link">PER730XD iDRAC</a></div>';
+        html += '<div class="cc-row"><a href="https://10.30.30.11" target="_blank" class="cc-btn cc-btn-link">PER630 iDRAC</a></div>';
+        html += '<div class="cc-row"><input type="text" id="cc-ome-url" placeholder="OpenManage Enterprise URL" class="cc-input" /></div>';
+        html += '<div class="cc-row"><button id="cc-ome-save" class="cc-btn">SAVE OME LINK</button></div>';
+        html += '</div></div>';
+
+        // ── Home Assistant ──
+        html += '<div class="cc-card cc-ha">';
+        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:#41BDF5;">⌂</span><span class="cc-card-title">HOME ASSISTANT</span><span id="cc-ha-status" class="cc-card-status">NOT CONFIGURED</span></div>';
+        html += '<div class="cc-card-body">';
+        html += '<div class="cc-row"><input type="text" id="cc-ha-url" placeholder="http://homeassistant.local:8123" class="cc-input" /></div>';
+        html += '<div class="cc-row"><input type="password" id="cc-ha-token" placeholder="Long-lived access token" class="cc-input" /></div>';
+        html += '<div class="cc-row"><button id="cc-ha-save" class="cc-btn">SAVE & TEST</button></div>';
+        html += '<div id="cc-ha-info" class="cc-empty">Enter HA URL + token to connect</div>';
+        html += '</div></div>';
+
+        // ── AMP Game Server ──
+        html += '<div class="cc-card cc-amp">';
+        html += '<div class="cc-card-header"><span class="cc-card-icon" style="color:var(--orange);">▲</span><span class="cc-card-title">AMP GAME PANEL</span><span class="cc-card-status">LINK</span></div>';
+        html += '<div class="cc-card-body">';
+        html += '<div class="cc-row"><a href="http://10.20.20.3:8080" target="_blank" class="cc-btn cc-btn-link">OPEN AMP</a></div>';
+        html += '</div></div>';
+
+        html += '</div>';
+        el.innerHTML = html;
+
+        initOBSController();
+        initSpotifyEmbed();
+        initGoveeController();
+        initHAController();
+        initOMELink();
+    }
+
+    // ── OBS WEBSOCKET CONTROLLER ──
+    var obsWs = null, obsMsgId = 1, obsCallbacks = {};
+    function obsRequest(type, data) {
+        return new Promise(function(resolve, reject) {
+            if (!obsWs || obsWs.readyState !== 1) return reject('not connected');
+            var id = String(obsMsgId++);
+            obsCallbacks[id] = resolve;
+            obsWs.send(JSON.stringify({ op: 6, d: { requestType: type, requestId: id, requestData: data || {} } }));
+            setTimeout(function() {
+                if (obsCallbacks[id]) { delete obsCallbacks[id]; reject('timeout'); }
+            }, 5000);
+        });
+    }
+
+    function initOBSController() {
+        var hostEl = document.getElementById('cc-obs-host');
+        var passEl = document.getElementById('cc-obs-pass');
+        var statusEl = document.getElementById('cc-obs-status');
+        var connectBtn = document.getElementById('cc-obs-connect');
+        var disconnectBtn = document.getElementById('cc-obs-disconnect');
+        var scenesEl = document.getElementById('cc-obs-scenes');
+        var streamBtn = document.getElementById('cc-obs-stream');
+        var recBtn = document.getElementById('cc-obs-record');
+
+        // Restore saved settings
+        try {
+            var saved = JSON.parse(localStorage.getItem('hcc-obs') || '{}');
+            if (saved.host) hostEl.value = saved.host;
+            if (saved.pass) passEl.value = saved.pass;
+        } catch(e) {}
+
+        connectBtn.addEventListener('click', function() {
+            var host = hostEl.value.trim();
+            var pass = passEl.value;
+            if (!host) return;
+            localStorage.setItem('hcc-obs', JSON.stringify({ host: host, pass: pass }));
+            try {
+                obsWs = new WebSocket(host);
+            } catch(e) {
+                statusEl.textContent = 'INVALID URL';
+                statusEl.style.color = 'var(--red)';
+                return;
+            }
+            statusEl.textContent = 'CONNECTING...';
+            statusEl.style.color = 'var(--orange)';
+
+            obsWs.onopen = function() { statusEl.textContent = 'AUTH...'; };
+            obsWs.onerror = function() { statusEl.textContent = 'ERROR'; statusEl.style.color = 'var(--red)'; };
+            obsWs.onclose = function() { statusEl.textContent = 'DISCONNECTED'; statusEl.style.color = 'var(--text-muted)'; };
+
+            obsWs.onmessage = async function(ev) {
+                var msg = JSON.parse(ev.data);
+                // Hello (op 0) → Identify (op 1)
+                if (msg.op === 0) {
+                    var auth = null;
+                    if (msg.d.authentication && pass) {
+                        // SHA256 challenge
+                        var encoder = new TextEncoder();
+                        var data1 = await crypto.subtle.digest('SHA-256', encoder.encode(pass + msg.d.authentication.salt));
+                        var b64a = btoa(String.fromCharCode.apply(null, new Uint8Array(data1)));
+                        var data2 = await crypto.subtle.digest('SHA-256', encoder.encode(b64a + msg.d.authentication.challenge));
+                        auth = btoa(String.fromCharCode.apply(null, new Uint8Array(data2)));
+                    }
+                    obsWs.send(JSON.stringify({ op: 1, d: { rpcVersion: 1, authentication: auth, eventSubscriptions: 33 } }));
+                }
+                // Identified (op 2)
+                if (msg.op === 2) {
+                    statusEl.textContent = 'CONNECTED';
+                    statusEl.style.color = 'var(--green)';
+                    loadOBSScenes();
+                    loadOBSStatus();
+                    setInterval(loadOBSStatus, 2000);
+                }
+                // Response (op 7)
+                if (msg.op === 7 && obsCallbacks[msg.d.requestId]) {
+                    obsCallbacks[msg.d.requestId](msg.d.responseData);
+                    delete obsCallbacks[msg.d.requestId];
+                }
+                // Event (op 5) — refresh scenes/status on changes
+                if (msg.op === 5) {
+                    if (msg.d.eventType === 'CurrentProgramSceneChanged') loadOBSScenes();
+                    if (msg.d.eventType === 'StreamStateChanged' || msg.d.eventType === 'RecordStateChanged') loadOBSStatus();
+                }
+            };
+        });
+
+        disconnectBtn.addEventListener('click', function() {
+            if (obsWs) obsWs.close();
+            obsWs = null;
+        });
+
+        async function loadOBSScenes() {
+            try {
+                var scenes = await obsRequest('GetSceneList');
+                var current = scenes.currentProgramSceneName;
+                scenesEl.innerHTML = '';
+                scenes.scenes.reverse().forEach(function(sc) {
+                    var btn = document.createElement('button');
+                    btn.className = 'cc-scene-btn' + (sc.sceneName === current ? ' active' : '');
+                    btn.textContent = sc.sceneName;
+                    btn.addEventListener('click', function() {
+                        obsRequest('SetCurrentProgramScene', { sceneName: sc.sceneName });
+                    });
+                    scenesEl.appendChild(btn);
+                });
+            } catch(e) { scenesEl.innerHTML = '<div class="cc-empty">No scenes</div>'; }
+        }
+
+        async function loadOBSStatus() {
+            try {
+                var stream = await obsRequest('GetStreamStatus');
+                var rec = await obsRequest('GetRecordStatus');
+                var stats = await obsRequest('GetStats');
+                document.getElementById('cc-obs-stream-status').textContent = stream.outputActive ? 'LIVE' : 'OFFLINE';
+                document.getElementById('cc-obs-stream-status').style.color = stream.outputActive ? 'var(--red)' : 'var(--text-muted)';
+                document.getElementById('cc-obs-rec-status').textContent = rec.outputActive ? 'REC' : 'OFFLINE';
+                document.getElementById('cc-obs-rec-status').style.color = rec.outputActive ? 'var(--red)' : 'var(--text-muted)';
+                document.getElementById('cc-obs-fps').textContent = stats.activeFps ? stats.activeFps.toFixed(1) : '--';
+                document.getElementById('cc-obs-cpu').textContent = stats.cpuUsage ? stats.cpuUsage.toFixed(1) + '%' : '--';
+                streamBtn.textContent = stream.outputActive ? 'STOP STREAM' : 'START STREAM';
+                streamBtn.classList.toggle('active', stream.outputActive);
+                recBtn.textContent = rec.outputActive ? 'STOP REC' : 'START REC';
+                recBtn.classList.toggle('active', rec.outputActive);
+            } catch(e) {}
+        }
+
+        streamBtn.addEventListener('click', function() { obsRequest('ToggleStream'); });
+        recBtn.addEventListener('click', function() { obsRequest('ToggleRecord'); });
+    }
+
+    // ── SPOTIFY EMBED ──
+    function initSpotifyEmbed() {
+        var input = document.getElementById('cc-spotify-uri');
+        var btn = document.getElementById('cc-spotify-load');
+        var embed = document.getElementById('cc-spotify-embed');
+
+        var saved = localStorage.getItem('hcc-spotify-uri');
+        if (saved) { input.value = saved; loadEmbed(saved); }
+
+        function loadEmbed(uri) {
+            // Convert spotify URI or URL to embed URL
+            var embedUrl = '';
+            if (uri.indexOf('spotify:') === 0) {
+                var parts = uri.split(':');
+                if (parts.length >= 3) embedUrl = 'https://open.spotify.com/embed/' + parts[1] + '/' + parts[2];
+            } else if (uri.indexOf('open.spotify.com') !== -1) {
+                embedUrl = uri.replace('open.spotify.com/', 'open.spotify.com/embed/').split('?')[0];
+            }
+            if (!embedUrl) { embed.innerHTML = '<div class="cc-empty">Invalid Spotify URI/URL</div>'; return; }
+            embed.innerHTML = '<iframe src="' + embedUrl + '" width="100%" height="152" frameborder="0" allow="encrypted-media" style="border-radius:8px;"></iframe>';
+        }
+
+        btn.addEventListener('click', function() {
+            var uri = input.value.trim();
+            if (!uri) return;
+            localStorage.setItem('hcc-spotify-uri', uri);
+            loadEmbed(uri);
+        });
+    }
+
+    // ── GOVEE CONTROLLER ──
+    function initGoveeController() {
+        var keyEl = document.getElementById('cc-govee-key');
+        var saveBtn = document.getElementById('cc-govee-save');
+        var statusEl = document.getElementById('cc-govee-status');
+        var devicesEl = document.getElementById('cc-govee-devices');
+
+        var saved = localStorage.getItem('hcc-govee-key');
+        if (saved) { keyEl.value = saved; loadDevices(saved); }
+
+        async function loadDevices(key) {
+            statusEl.textContent = 'LOADING...';
+            statusEl.style.color = 'var(--orange)';
+            try {
+                var res = await fetch('https://developer-api.govee.com/v1/devices', {
+                    headers: { 'Govee-API-Key': key }
+                });
+                if (!res.ok) throw new Error('API error ' + res.status);
+                var data = await res.json();
+                var devices = (data.data && data.data.devices) || [];
+                statusEl.textContent = devices.length + ' DEVICES';
+                statusEl.style.color = 'var(--green)';
+                devicesEl.innerHTML = '';
+                devices.forEach(function(d) {
+                    var card = document.createElement('div');
+                    card.className = 'cc-device';
+                    card.innerHTML = '<div class="cc-device-name">' + esc(d.deviceName) + '</div>' +
+                        '<div class="cc-device-controls">' +
+                        '<button class="cc-btn-mini" data-act="on">ON</button>' +
+                        '<button class="cc-btn-mini" data-act="off">OFF</button>' +
+                        '<input type="range" min="1" max="100" value="50" class="cc-slider" />' +
+                        '</div>';
+                    var controls = card.querySelectorAll('button');
+                    controls.forEach(function(b) {
+                        b.addEventListener('click', function() {
+                            controlGovee(key, d, { name: 'turn', value: b.dataset.act });
+                        });
+                    });
+                    var slider = card.querySelector('.cc-slider');
+                    slider.addEventListener('change', function() {
+                        controlGovee(key, d, { name: 'brightness', value: parseInt(slider.value) });
+                    });
+                    devicesEl.appendChild(card);
+                });
+                if (devices.length === 0) devicesEl.innerHTML = '<div class="cc-empty">No devices found</div>';
+            } catch(e) {
+                statusEl.textContent = 'ERROR';
+                statusEl.style.color = 'var(--red)';
+                devicesEl.innerHTML = '<div class="cc-empty">' + e.message + '</div>';
+            }
+        }
+
+        function controlGovee(key, device, cmd) {
+            fetch('https://developer-api.govee.com/v1/devices/control', {
+                method: 'PUT',
+                headers: { 'Govee-API-Key': key, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device: device.device, model: device.model, cmd: cmd })
+            }).catch(function() {});
+        }
+
+        saveBtn.addEventListener('click', function() {
+            var k = keyEl.value.trim();
+            if (!k) return;
+            localStorage.setItem('hcc-govee-key', k);
+            loadDevices(k);
+        });
+    }
+
+    // ── HOME ASSISTANT ──
+    function initHAController() {
+        var urlEl = document.getElementById('cc-ha-url');
+        var tokEl = document.getElementById('cc-ha-token');
+        var saveBtn = document.getElementById('cc-ha-save');
+        var statusEl = document.getElementById('cc-ha-status');
+        var infoEl = document.getElementById('cc-ha-info');
+
+        var saved = JSON.parse(localStorage.getItem('hcc-ha') || '{}');
+        if (saved.url) urlEl.value = saved.url;
+        if (saved.token) tokEl.value = saved.token;
+        if (saved.url && saved.token) testConnection(saved.url, saved.token);
+
+        async function testConnection(url, token) {
+            statusEl.textContent = 'TESTING...';
+            statusEl.style.color = 'var(--orange)';
+            try {
+                var res = await fetch(url.replace(/\/$/, '') + '/api/', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                var data = await res.json();
+                statusEl.textContent = 'CONNECTED';
+                statusEl.style.color = 'var(--green)';
+                infoEl.innerHTML = '<div style="font-size:0.75rem;color:var(--text-muted);">' + esc(data.message || 'OK') + '</div>' +
+                    '<div style="margin-top:6px;"><a href="' + esc(url) + '" target="_blank" class="cc-btn cc-btn-link">OPEN HA UI</a></div>';
+            } catch(e) {
+                statusEl.textContent = 'ERROR';
+                statusEl.style.color = 'var(--red)';
+                infoEl.innerHTML = '<div class="cc-empty">' + e.message + '</div>';
+            }
+        }
+
+        saveBtn.addEventListener('click', function() {
+            var u = urlEl.value.trim();
+            var t = tokEl.value.trim();
+            if (!u || !t) return;
+            localStorage.setItem('hcc-ha', JSON.stringify({ url: u, token: t }));
+            testConnection(u, t);
+        });
+    }
+
+    // ── OME LINK ──
+    function initOMELink() {
+        var urlEl = document.getElementById('cc-ome-url');
+        var saveBtn = document.getElementById('cc-ome-save');
+        var saved = localStorage.getItem('hcc-ome-url');
+        if (saved) urlEl.value = saved;
+        saveBtn.addEventListener('click', function() {
+            var u = urlEl.value.trim();
+            if (!u) return;
+            localStorage.setItem('hcc-ome-url', u);
+            window.open(u, '_blank');
+        });
     }
 
     // ── DNS QUERY MONITOR ──
@@ -668,11 +1276,13 @@
     var NAV_ITEMS = [
         { id: 'home',     icon: 'HM', label: 'HOME',       color: '#00d4ff' },
         { id: 'pihole',   icon: 'PH', label: 'PI-HOLE',    color: '#00ff88' },
-        { id: 'servers',  icon: 'SV', label: 'SERVERS',     color: '#ff6600' },
-        { id: 'firewall', icon: 'FW', label: 'FIREWALL',    color: '#ff2244' },
-        { id: 'network',  icon: 'NW', label: 'NETWORK',     color: '#B986F2' },
-        { id: 'router',   icon: 'RT', label: 'ROUTER',      color: '#FFD700' },
-        { id: 'monitor',  icon: 'MO', label: 'MONITOR',     color: '#FF00B2' }
+        { id: 'servers',  icon: 'SV', label: 'SERVERS',    color: '#ff6600' },
+        { id: 'per730',   icon: 'P7', label: 'PER730XD',   color: '#00B7FF' },
+        { id: 'firewall', icon: 'FW', label: 'FIREWALL',   color: '#ff2244' },
+        { id: 'network',  icon: 'NW', label: 'NETWORK',    color: '#B986F2' },
+        { id: 'router',   icon: 'RT', label: 'ROUTER',     color: '#FFD700' },
+        { id: 'monitor',  icon: 'MO', label: 'MONITOR',    color: '#FF00B2' },
+        { id: 'control',  icon: 'CC', label: 'CONTROL',    color: '#00FFCC' }
     ];
 
     var currentPage = 'home';
@@ -682,10 +1292,12 @@
     var PAGE_LAYOUTS = {
         pihole:   [{ id: 'pihole', w: 12, h: 10 }],
         servers:  [{ id: 'servers', w: 12, h: 10 }],
+        per730:   [{ id: 'per730', w: 12, h: 12 }],
         firewall: [{ id: 'firewall', w: 6, h: 8 }, { id: 'netwatch', w: 6, h: 8 }],
         network:  [{ id: 'bandwidth', w: 6, h: 6 }, { id: 'dhcp', w: 6, h: 6 }],
         router:   [{ id: 'router', w: 5, h: 6 }, { id: 'logs', w: 7, h: 6 }],
-        monitor:  [{ id: 'overview', w: 4, h: 5 }, { id: 'targets', w: 4, h: 5 }, { id: 'netwatch', w: 4, h: 5 }]
+        monitor:  [{ id: 'overview', w: 4, h: 5 }, { id: 'targets', w: 4, h: 5 }, { id: 'netwatch', w: 4, h: 5 }],
+        control:  [{ id: 'control', w: 12, h: 12 }]
     };
 
     function switchPage(pageId) {
@@ -1344,10 +1956,95 @@
         }
     }
 
+    // ── KIOSK MODE ──
+    function initKioskMode() {
+        var btn = document.getElementById('hcc-kiosk-btn');
+        if (!btn) return;
+        var kioskActive = false;
+        var cursorTimeout = null;
+
+        function enterKiosk() {
+            var de = document.documentElement;
+            // Try all browser variants (Firefox + Chromium)
+            if (de.requestFullscreen) de.requestFullscreen();
+            else if (de.webkitRequestFullscreen) de.webkitRequestFullscreen();
+            else if (de.mozRequestFullScreen) de.mozRequestFullScreen();
+            else if (de.msRequestFullscreen) de.msRequestFullscreen();
+            document.body.classList.add('hcc-kiosk');
+            kioskActive = true;
+            btn.textContent = 'EXIT';
+            btn.classList.add('active');
+        }
+        function exitKiosk() {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+            document.body.classList.remove('hcc-kiosk', 'hcc-cursor-hidden');
+            kioskActive = false;
+            btn.textContent = 'KIOSK';
+            btn.classList.remove('active');
+        }
+        btn.addEventListener('click', function() {
+            if (kioskActive) exitKiosk(); else enterKiosk();
+        });
+
+        // Auto-hide cursor after 3s of inactivity in kiosk mode
+        function resetCursor() {
+            if (!kioskActive) return;
+            document.body.classList.remove('hcc-cursor-hidden');
+            if (cursorTimeout) clearTimeout(cursorTimeout);
+            cursorTimeout = setTimeout(function() {
+                if (kioskActive) document.body.classList.add('hcc-cursor-hidden');
+            }, 3000);
+        }
+        document.addEventListener('mousemove', resetCursor);
+
+        // Detect fullscreen exit (Esc key) — all browser variants
+        function onFsChange() {
+            var fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+            if (!fsEl && kioskActive) {
+                document.body.classList.remove('hcc-kiosk', 'hcc-cursor-hidden');
+                kioskActive = false;
+                btn.textContent = 'KIOSK';
+                btn.classList.remove('active');
+            }
+        }
+        document.addEventListener('fullscreenchange', onFsChange);
+        document.addEventListener('webkitfullscreenchange', onFsChange);
+        document.addEventListener('mozfullscreenchange', onFsChange);
+        document.addEventListener('MSFullscreenChange', onFsChange);
+    }
+
+    // ── MOBILE SIDEBAR TAP TOGGLE ──
+    function initMobileSidebar() {
+        var sb = document.getElementById('hcc-sidebar');
+        if (!sb) return;
+        // Detect touch device
+        var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        if (!isTouch) return;
+        // Tap on collapsed sidebar opens it; tap outside closes it
+        sb.addEventListener('click', function(e) {
+            if (window.innerWidth > 900) return;
+            // Don't toggle if a nav item or trigger was clicked (those have their own handlers)
+            if (e.target.closest('.hcc-sb-panel') || e.target.closest('#hcc-net-trigger')) return;
+            sb.classList.toggle('hcc-sb-open');
+        });
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth > 900) return;
+            if (!sb.contains(e.target) && sb.classList.contains('hcc-sb-open')) {
+                sb.classList.remove('hcc-sb-open');
+            }
+        });
+    }
+
     function startDashboard() {
         initClock();
         initGrid();
         buildSidebar();
+        initKioskMode();
+        initMobileSidebar();
+        renderControl();
         // Core effects
         if (typeof addParticleField === 'function') addParticleField('particle-bg');
         if (typeof addDataRain === 'function') addDataRain();
