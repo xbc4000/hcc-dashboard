@@ -530,28 +530,9 @@ body {
     opacity: 1;
 }
 
-/* Hide widgets + topology when collapsed, show on expand */
+/* Widgets always visible, clip when collapsed */
 .hcc-sb-widget {
-    opacity: 0;
-    max-height: 0;
-    overflow: hidden;
-    margin: 0 5px !important;
-    padding: 0 10px !important;
-    border-color: transparent !important;
-    transition: opacity 0.3s ease 0.1s, max-height 0.3s ease, margin 0.3s ease, padding 0.3s ease;
-}
-
-#hcc-sidebar:hover .hcc-sb-widget {
-    opacity: 1;
-    max-height: 300px;
-    margin: 8px 5px !important;
-    padding: 8px 10px !important;
-    border-color: rgba(0,183,255,0.15) !important;
-}
-
-/* Logo subtitle hidden when collapsed */
-#hcc-sb-logo .hcc-sb-label {
-    transition: opacity 0.2s ease 0.1s;
+    transition: all 0.3s ease;
 }
 
 /* ── Sidebar Scan Line ────────────────────────────────── */
