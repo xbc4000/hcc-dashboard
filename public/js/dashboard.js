@@ -650,7 +650,6 @@
         html += '<button data-cec-pwr="on" class="cc-btn cec-pwr">POWER ON</button>';
         html += '<button data-cec-pwr="off" class="cc-btn cc-btn-warn cec-pwr">STANDBY</button>';
         html += '<button data-cec-key="display-information" class="cc-btn cec-key">INFO</button>';
-        html += '<button id="cc-spbr-cec-swap" class="cc-btn">SWAP ↕</button>';
         html += '</div>';
         // D-pad
         html += '<div class="cec-dpad">';
@@ -882,7 +881,8 @@
             } catch (e) { spbrLog('CEC ' + label + ' error: ' + e.message, 'err'); }
         }
         // Delegated click — any button with data-cec-key/pwr/source under the bridge card
-        document.getElementById('panel-control').addEventListener('click', function (ev) {
+        var panelControlEl = document.getElementById('panel-control');
+        if (panelControlEl) panelControlEl.addEventListener('click', function (ev) {
             var t = ev.target;
             if (!t || !t.tagName) return;
             // Volume + mute via /cec/vol/* (faster path with our swap logic)
@@ -908,11 +908,6 @@
             var k = document.getElementById('cc-spbr-cec-rawkey').value.trim();
             if (!k) return;
             cecPost('/cec/remote/' + encodeURIComponent(k), 'raw:' + k);
-        });
-        // Swap toggle — flips CEC volume up/down mapping live for testing
-        document.getElementById('cc-spbr-cec-swap').addEventListener('click', function () {
-            cecPost('/cec/swap', 'swap toggle');
-            setTimeout(fetchStatus, 300);
         });
 
         refreshBtn.addEventListener('click', function () {
