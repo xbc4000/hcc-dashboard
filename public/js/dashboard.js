@@ -1884,38 +1884,37 @@
         var el = document.getElementById('logs-body');
         if (!logs||!Array.isArray(logs)) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
 
-        // ── Topic classification ──
-        // dns,packet is verbose DEBUG-level packet dumps — if it's
-        // enabled on RouterOS it floods the log buffer and drowns
-        // out real events. We still show it, just dimmed, so it
-        // doesn't fight for attention with firewall/error lines.
+        // Topic classification — ALL entries render at full prominence.
+        // If the user wants less dns,packet noise they'll disable that
+        // logging topic on the router itself (grafana/loki shouldn't
+        // lose entries just because the dashboard filters them).
         function classify(topics) {
-            if (!topics) return { color: 'var(--text-muted)', dim: false, kind: 'other' };
+            if (!topics) return { color: 'var(--text-muted)', kind: 'other' };
             if (topics.indexOf('critical') !== -1 || topics.indexOf('error') !== -1)
-                return { color: 'var(--red)',    dim: false, kind: 'error' };
+                return { color: 'var(--red)',    kind: 'error' };
             if (topics.indexOf('warning') !== -1)
-                return { color: 'var(--orange)', dim: false, kind: 'warning' };
+                return { color: 'var(--orange)', kind: 'warning' };
             if (topics.indexOf('firewall') !== -1)
-                return { color: 'var(--red)',    dim: false, kind: 'firewall' };
-            if (topics.indexOf('packet') !== -1) // dns,packet debug spam
-                return { color: 'var(--text-muted)', dim: true, kind: 'packet' };
+                return { color: 'var(--red)',    kind: 'firewall' };
+            if (topics.indexOf('packet') !== -1)
+                return { color: 'var(--magenta)', kind: 'packet' };
             if (topics.indexOf('dhcp') !== -1)
-                return { color: 'var(--cyan)',   dim: false, kind: 'dhcp' };
+                return { color: 'var(--cyan)',   kind: 'dhcp' };
             if (topics.indexOf('dns') !== -1)
-                return { color: 'var(--cyan)',   dim: false, kind: 'dns' };
+                return { color: 'var(--cyan)',   kind: 'dns' };
             if (topics.indexOf('info') !== -1)
-                return { color: 'var(--cyan)',   dim: false, kind: 'info' };
-            return { color: 'var(--text-muted)', dim: false, kind: 'other' };
+                return { color: 'var(--cyan)',   kind: 'info' };
+            return { color: 'var(--text-muted)', kind: 'other' };
         }
 
-        // ── Topic counters for the header ──
+        // Topic counters for the header
         var counts = { total: logs.length, error: 0, warning: 0, firewall: 0, packet: 0, dhcp: 0, dns: 0 };
         logs.forEach(function (l) {
             var k = classify(l.topics).kind;
             if (counts[k] !== undefined) counts[k]++;
         });
 
-        // Header: quick counts + hint if dns,packet is flooding
+        // Sticky header: quick counts, always visible while scrolling
         var html = '<div style="position:sticky;top:0;background:rgba(3,6,16,0.92);backdrop-filter:blur(6px);padding:4px 0 6px 0;margin-bottom:4px;border-bottom:1px solid rgba(0,183,255,0.15);z-index:2;">';
         html += '<div style="font-size:0.72rem;letter-spacing:2px;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap;">';
         html += '<span>'+counts.total+' LINES</span>';
@@ -1924,21 +1923,15 @@
         if (counts.firewall) html += '<span style="color:var(--red);">'+counts.firewall+' FW</span>';
         if (counts.dhcp)     html += '<span style="color:var(--cyan);">'+counts.dhcp+' DHCP</span>';
         if (counts.dns)      html += '<span style="color:var(--cyan);">'+counts.dns+' DNS</span>';
-        if (counts.packet)   html += '<span style="color:var(--text-muted);opacity:0.7;">'+counts.packet+' PACKET·DEBUG</span>';
+        if (counts.packet)   html += '<span style="color:var(--magenta);">'+counts.packet+' PACKET</span>';
         html += '</div>';
-        if (counts.packet > counts.total * 0.3) {
-            // Over 30% of the buffer is dns,packet debug spam — nudge the user
-            html += '<div style="font-size:0.68rem;color:var(--orange);margin-top:3px;letter-spacing:1px;">⚠ dns,packet debug logging is flooding the buffer — disable on router to see real events</div>';
-        }
         html += '</div>';
 
-        // Body: newest at bottom (same order as `/log/print` returns them)
+        // Body: newest at bottom (matches /log/print natural order)
         html += '<div style="font-family:var(--font-mono);">';
         logs.forEach(function (log) {
             var c = classify(log.topics);
-            var rowStyle = 'font-size:0.78rem;padding:2px 0;border-bottom:1px solid rgba(22,34,66,0.25);';
-            if (c.dim) rowStyle += 'opacity:0.55;';
-            html += '<div style="'+rowStyle+'">';
+            html += '<div style="font-size:0.78rem;padding:2px 0;border-bottom:1px solid rgba(22,34,66,0.25);">';
             html += '<span style="color:var(--text-muted);">'+esc(log.time)+'</span> ';
             html += '<span style="color:'+c.color+';">'+esc(log.topics)+'</span> ';
             html += '<span style="color:var(--text);">'+esc(log.message)+'</span>';
@@ -1947,9 +1940,9 @@
         html += '</div>';
         el.innerHTML = html;
 
-        // Auto-scroll to the bottom so the newest entry is always visible
-        // (only if the user is already near the bottom — don't yank them
-        // away if they've scrolled up to read older events).
+        // Auto-scroll to the bottom so the newest entry is always visible —
+        // unless the user has scrolled up to read older events, in which
+        // case leave their scroll position alone.
         var nearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 120;
         if (nearBottom) el.scrollTop = el.scrollHeight;
     }
