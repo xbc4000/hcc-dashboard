@@ -1792,16 +1792,70 @@
     // ── GRIDSTACK LAYOUT ──
     var hccGrid = null;
     var editMode = false;
-    var LAYOUT_KEY = 'hcc-layout';
+
+    // Per-page layouts stored as a single object in localStorage
+    //   { home: [{id,x,y,w,h}, ...], pihole: [...], servers: [...], ... }
+    var LAYOUTS_KEY = 'hcc-layouts-v2';
+
+    function loadAllLayouts() {
+        try { return JSON.parse(localStorage.getItem(LAYOUTS_KEY)) || {}; }
+        catch (e) { return {}; }
+    }
+
+    function saveAllLayouts(layouts) {
+        localStorage.setItem(LAYOUTS_KEY, JSON.stringify(layouts));
+    }
+
+    function getPageLayout(pageId) {
+        return loadAllLayouts()[pageId] || null;
+    }
+
+    function setPageLayout(pageId, layout) {
+        var all = loadAllLayouts();
+        all[pageId] = layout;
+        saveAllLayouts(all);
+    }
+
+    // Snapshot current visible panels' positions for a page
+    function snapshotCurrentLayout() {
+        if (!hccGrid) return [];
+        var items = hccGrid.getGridItems();
+        return items
+            .filter(function (el) { return !el.classList.contains('hcc-page-hidden'); })
+            .map(function (el) {
+                return {
+                    id: el.getAttribute('gs-id'),
+                    x: parseInt(el.getAttribute('gs-x')),
+                    y: parseInt(el.getAttribute('gs-y')),
+                    w: parseInt(el.getAttribute('gs-w')),
+                    h: parseInt(el.getAttribute('gs-h'))
+                };
+            });
+    }
 
     function initGrid() {
         if (typeof GridStack === 'undefined') return;
 
-        // Load saved layout and apply positions before init
-        var saved = null;
-        try { saved = JSON.parse(localStorage.getItem(LAYOUT_KEY)); } catch(e) {}
-        if (saved && Array.isArray(saved)) {
-            saved.forEach(function(item) {
+        // One-time migration: old single-key 'hcc-layout' → new 'home' slot
+        var oldKey = localStorage.getItem('hcc-layout');
+        if (oldKey) {
+            try {
+                var oldLayout = JSON.parse(oldKey);
+                if (oldLayout && Array.isArray(oldLayout)) {
+                    var existing = loadAllLayouts();
+                    if (!existing.home) {
+                        existing.home = oldLayout;
+                        saveAllLayouts(existing);
+                    }
+                }
+            } catch (e) {}
+            localStorage.removeItem('hcc-layout');
+        }
+
+        // Load HOME layout (first page shown) and apply positions before init
+        var homeLayout = getPageLayout('home');
+        if (homeLayout && Array.isArray(homeLayout)) {
+            homeLayout.forEach(function (item) {
                 var el = document.querySelector('[gs-id="' + item.id + '"]');
                 if (el) {
                     if (item.x !== undefined) el.setAttribute('gs-x', item.x);
@@ -1823,14 +1877,15 @@
             disableDrag: true
         });
 
-        // Save layout on any change
-        hccGrid.on('change', function() { saveLayout(); });
+        // Save layout on any change (only when not suppressed + in edit mode
+        // OR user-initiated move/resize). We gate on currentPage inside.
+        hccGrid.on('change', function () { saveLayout(); });
 
         // Edit mode toggle
         var editBtn = document.getElementById('hcc-edit-btn');
         var resetBtn = document.getElementById('hcc-reset-btn');
         if (editBtn) {
-            editBtn.addEventListener('click', function() {
+            editBtn.addEventListener('click', function () {
                 editMode = !editMode;
                 hccGrid.enableMove(editMode);
                 hccGrid.enableResize(editMode);
@@ -1841,32 +1896,25 @@
             });
         }
         if (resetBtn) {
-            resetBtn.addEventListener('click', function() {
-                localStorage.removeItem(LAYOUT_KEY);
+            resetBtn.addEventListener('click', function () {
+                if (!confirm('Reset layout for CURRENT page (' + currentPage + ') to defaults?\n\nOther pages stay customized.')) return;
+                // Clear just the current page's layout
+                var all = loadAllLayouts();
+                delete all[currentPage];
+                saveAllLayouts(all);
                 window.location.reload();
             });
         }
     }
 
+    // Save the current page's layout to its own slot
     function saveLayout() {
         if (!hccGrid) return;
-        // Don't persist layout while we're mid-page-switch — would clobber
-        // the user's HOME arrangement with per-page sizing
+        // Don't persist during programmatic page switches
         if (suppressSave) return;
-        // Only save when we're on HOME — HOME is the user-customizable
-        // canvas; per-page layouts are programmatic and shouldn't persist
-        if (currentPage !== 'home') return;
-        var items = hccGrid.getGridItems();
-        var layout = items.map(function(el) {
-            return {
-                id: el.getAttribute('gs-id'),
-                x: parseInt(el.getAttribute('gs-x')),
-                y: parseInt(el.getAttribute('gs-y')),
-                w: parseInt(el.getAttribute('gs-w')),
-                h: parseInt(el.getAttribute('gs-h'))
-            };
-        });
-        localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+        var layout = snapshotCurrentLayout();
+        if (layout.length === 0) return;
+        setPageLayout(currentPage, layout);
     }
 
     // ── SIDEBAR ──
@@ -1883,7 +1931,6 @@
     ];
 
     var currentPage = 'home';
-    var homeLayoutSaved = null;
 
     // Dedicated page layouts: panels get resized for full-page view
     var PAGE_LAYOUTS = {
@@ -1903,35 +1950,30 @@
     };
 
     // Suppress saveLayout() triggers during programmatic page switches so
-    // we don't overwrite the user's saved HOME layout with per-page sizing.
+    // we don't overwrite a saved page layout while transitioning.
     var suppressSave = false;
 
     function switchPage(pageId) {
         if (pageId === currentPage) return;
 
-        // Save HOME layout before leaving — capture the user's actual current
-        // arrangement so we can restore it perfectly on return
-        if (currentPage === 'home' && hccGrid) {
-            homeLayoutSaved = [];
-            hccGrid.getGridItems().forEach(function(el) {
-                homeLayoutSaved.push({
-                    id: el.getAttribute('gs-id'),
-                    x: parseInt(el.getAttribute('gs-x')),
-                    y: parseInt(el.getAttribute('gs-y')),
-                    w: parseInt(el.getAttribute('gs-w')),
-                    h: parseInt(el.getAttribute('gs-h'))
-                });
-            });
+        // Snapshot the CURRENT page's layout before leaving so we can restore
+        // exactly this arrangement next time. Only save if the page has
+        // visible panels (otherwise we'd save an empty layout).
+        if (hccGrid) {
+            var currentSnapshot = snapshotCurrentLayout();
+            if (currentSnapshot.length > 0) {
+                setPageLayout(currentPage, currentSnapshot);
+            }
         }
 
         currentPage = pageId;
-        suppressSave = true;  // gate the auto-save 'change' listener
+        suppressSave = true;
 
         // Show/hide panels based on data-pages
         var allItems = document.querySelectorAll('.grid-stack-item');
         if (hccGrid) hccGrid.batchUpdate(true);
 
-        allItems.forEach(function(el) {
+        allItems.forEach(function (el) {
             var pages = (el.dataset.pages || 'home').split(',');
             if (pages.indexOf(pageId) !== -1) {
                 el.classList.remove('hcc-page-hidden');
@@ -1940,39 +1982,55 @@
             }
         });
 
-        // Resize panels for dedicated pages
-        if (pageId !== 'home' && PAGE_LAYOUTS[pageId] && hccGrid) {
-            PAGE_LAYOUTS[pageId].forEach(function(layout) {
+        // Priority 1: restore saved user layout for this page
+        // Priority 2: fall back to the default PAGE_LAYOUTS dimensions
+        // Priority 3: let gridstack auto-position
+        var savedLayout = getPageLayout(pageId);
+        if (savedLayout && Array.isArray(savedLayout) && savedLayout.length > 0 && hccGrid) {
+            savedLayout.forEach(function (item) {
+                var el = document.querySelector('[gs-id="' + item.id + '"]');
+                if (el) hccGrid.update(el, { x: item.x, y: item.y, w: item.w, h: item.h });
+            });
+        } else if (PAGE_LAYOUTS[pageId] && hccGrid) {
+            // First visit to this page — apply defaults, gridstack auto-positions
+            PAGE_LAYOUTS[pageId].forEach(function (layout) {
                 var el = document.querySelector('[gs-id="' + layout.id + '"]');
                 if (el) hccGrid.update(el, { w: layout.w, h: layout.h, autoPosition: true });
             });
         }
 
-        // Restore HOME layout
-        if (pageId === 'home' && homeLayoutSaved && hccGrid) {
-            homeLayoutSaved.forEach(function(item) {
-                var el = document.querySelector('[gs-id="' + item.id + '"]');
-                if (el) hccGrid.update(el, { x: item.x, y: item.y, w: item.w, h: item.h });
-            });
-        }
-
         if (hccGrid) {
             hccGrid.batchUpdate(false);
-            if (pageId !== 'home') hccGrid.compact();
+            // Compact only when there's no saved layout to respect
+            if (!savedLayout) hccGrid.compact();
         }
 
+        // Scroll to top so the new page starts fresh
+        var main = document.getElementById('hcc-main');
+        if (main) main.scrollTop = 0;
+        window.scrollTo(0, 0);
+
         // Update sidebar active state
-        document.querySelectorAll('.hcc-sb-item').forEach(function(li) {
+        document.querySelectorAll('.hcc-sb-item').forEach(function (li) {
             li.classList.toggle('active', li.dataset.page === pageId);
         });
 
-        // Lift the save gate after the grid settles
-        setTimeout(function() {
+        // Lift the save gate after the grid settles, then save the new state
+        // (captures any auto-positioning gridstack did so it persists for
+        // next visit)
+        setTimeout(function () {
             suppressSave = false;
+            // Only save if we didn't already have a layout for this page —
+            // otherwise a snapshot here would overwrite user customizations
+            // made later on this page with the initial auto-positioned state
+            if (!getPageLayout(pageId)) {
+                var newSnapshot = snapshotCurrentLayout();
+                if (newSnapshot.length > 0) setPageLayout(pageId, newSnapshot);
+            }
             // Re-apply effects after layout change
             if (typeof window._hccApplyArcs === 'function') window._hccApplyArcs();
             if (typeof window._hccApplyRings === 'function') window._hccApplyRings();
-        }, 300);
+        }, 400);
     }
 
     function buildNetworkPopup() {
