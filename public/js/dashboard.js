@@ -2035,6 +2035,26 @@
             localStorage.removeItem('hcc-layout');
         }
 
+        // ── Hide non-home panels from gridstack's auto-registration ──
+        // Before GridStack.init() runs, strip the 'grid-stack-item' class from
+        // any panel that isn't on HOME. This prevents gridstack from
+        // auto-placing big panels like per730/per630/rpi (which would push
+        // HOME panels into weird positions around holes where those giants
+        // briefly lived before our init-time remove loop kicked them out).
+        //
+        // We keep the class in a cached list so we can restore it immediately
+        // after init — that way later switchPage → makeWidget() calls still
+        // recognize these as grid-stack-items and can register them.
+        var nonHomeItems = [];
+        document.querySelectorAll('.grid-stack-item').forEach(function (el) {
+            var pages = (el.dataset.pages || 'home').split(',');
+            if (pages.indexOf('home') === -1) {
+                el.classList.remove('grid-stack-item');
+                el.classList.add('hcc-page-hidden');
+                nonHomeItems.push(el);
+            }
+        });
+
         // Load HOME layout (first page shown) and apply positions before init
         var homeLayout = getPageLayout('home');
         if (homeLayout && Array.isArray(homeLayout)) {
@@ -2060,17 +2080,10 @@
             disableDrag: true
         });
 
-        // On first load, gridstack has registered ALL grid-stack-item elements
-        // including panels that belong to other pages. Hide + remove those now
-        // so only HOME panels are tracked. They'll be re-added as users navigate.
-        var allItemsInit = document.querySelectorAll('.grid-stack-item');
-        allItemsInit.forEach(function (el) {
-            var pages = (el.dataset.pages || 'home').split(',');
-            if (pages.indexOf('home') === -1) {
-                el.classList.add('hcc-page-hidden');
-                try { hccGrid.removeWidget(el, false); } catch (e) {}
-            }
-        });
+        // Restore 'grid-stack-item' class on non-home panels so makeWidget()
+        // can register them later when the user navigates to their page.
+        // They stay visually hidden via 'hcc-page-hidden' until then.
+        nonHomeItems.forEach(function (el) { el.classList.add('grid-stack-item'); });
 
         // Save layout on any change (gated by currentPage + suppressSave inside)
         hccGrid.on('change', function () { saveLayout(); });
