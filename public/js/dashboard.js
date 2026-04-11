@@ -1883,20 +1883,75 @@
     function renderLogs(logs) {
         var el = document.getElementById('logs-body');
         if (!logs||!Array.isArray(logs)) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
-        var html = '<div>';
-        logs.forEach(function(log) {
-            var topicColor = 'var(--text-muted)';
-            if (log.topics.indexOf('error')!==-1||log.topics.indexOf('critical')!==-1) topicColor = 'var(--red)';
-            else if (log.topics.indexOf('warning')!==-1) topicColor = 'var(--orange)';
-            else if (log.topics.indexOf('info')!==-1) topicColor = 'var(--cyan)';
-            html += '<div style="font-size:0.8rem;padding:2px 0;border-bottom:1px solid rgba(22,34,66,0.3);">';
+
+        // ── Topic classification ──
+        // dns,packet is verbose DEBUG-level packet dumps — if it's
+        // enabled on RouterOS it floods the log buffer and drowns
+        // out real events. We still show it, just dimmed, so it
+        // doesn't fight for attention with firewall/error lines.
+        function classify(topics) {
+            if (!topics) return { color: 'var(--text-muted)', dim: false, kind: 'other' };
+            if (topics.indexOf('critical') !== -1 || topics.indexOf('error') !== -1)
+                return { color: 'var(--red)',    dim: false, kind: 'error' };
+            if (topics.indexOf('warning') !== -1)
+                return { color: 'var(--orange)', dim: false, kind: 'warning' };
+            if (topics.indexOf('firewall') !== -1)
+                return { color: 'var(--red)',    dim: false, kind: 'firewall' };
+            if (topics.indexOf('packet') !== -1) // dns,packet debug spam
+                return { color: 'var(--text-muted)', dim: true, kind: 'packet' };
+            if (topics.indexOf('dhcp') !== -1)
+                return { color: 'var(--cyan)',   dim: false, kind: 'dhcp' };
+            if (topics.indexOf('dns') !== -1)
+                return { color: 'var(--cyan)',   dim: false, kind: 'dns' };
+            if (topics.indexOf('info') !== -1)
+                return { color: 'var(--cyan)',   dim: false, kind: 'info' };
+            return { color: 'var(--text-muted)', dim: false, kind: 'other' };
+        }
+
+        // ── Topic counters for the header ──
+        var counts = { total: logs.length, error: 0, warning: 0, firewall: 0, packet: 0, dhcp: 0, dns: 0 };
+        logs.forEach(function (l) {
+            var k = classify(l.topics).kind;
+            if (counts[k] !== undefined) counts[k]++;
+        });
+
+        // Header: quick counts + hint if dns,packet is flooding
+        var html = '<div style="position:sticky;top:0;background:rgba(3,6,16,0.92);backdrop-filter:blur(6px);padding:4px 0 6px 0;margin-bottom:4px;border-bottom:1px solid rgba(0,183,255,0.15);z-index:2;">';
+        html += '<div style="font-size:0.72rem;letter-spacing:2px;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap;">';
+        html += '<span>'+counts.total+' LINES</span>';
+        if (counts.error)    html += '<span style="color:var(--red);">'+counts.error+' ERROR</span>';
+        if (counts.warning)  html += '<span style="color:var(--orange);">'+counts.warning+' WARN</span>';
+        if (counts.firewall) html += '<span style="color:var(--red);">'+counts.firewall+' FW</span>';
+        if (counts.dhcp)     html += '<span style="color:var(--cyan);">'+counts.dhcp+' DHCP</span>';
+        if (counts.dns)      html += '<span style="color:var(--cyan);">'+counts.dns+' DNS</span>';
+        if (counts.packet)   html += '<span style="color:var(--text-muted);opacity:0.7;">'+counts.packet+' PACKET·DEBUG</span>';
+        html += '</div>';
+        if (counts.packet > counts.total * 0.3) {
+            // Over 30% of the buffer is dns,packet debug spam — nudge the user
+            html += '<div style="font-size:0.68rem;color:var(--orange);margin-top:3px;letter-spacing:1px;">⚠ dns,packet debug logging is flooding the buffer — disable on router to see real events</div>';
+        }
+        html += '</div>';
+
+        // Body: newest at bottom (same order as `/log/print` returns them)
+        html += '<div style="font-family:var(--font-mono);">';
+        logs.forEach(function (log) {
+            var c = classify(log.topics);
+            var rowStyle = 'font-size:0.78rem;padding:2px 0;border-bottom:1px solid rgba(22,34,66,0.25);';
+            if (c.dim) rowStyle += 'opacity:0.55;';
+            html += '<div style="'+rowStyle+'">';
             html += '<span style="color:var(--text-muted);">'+esc(log.time)+'</span> ';
-            html += '<span style="color:'+topicColor+';">'+esc(log.topics)+'</span> ';
+            html += '<span style="color:'+c.color+';">'+esc(log.topics)+'</span> ';
             html += '<span style="color:var(--text);">'+esc(log.message)+'</span>';
             html += '</div>';
         });
         html += '</div>';
         el.innerHTML = html;
+
+        // Auto-scroll to the bottom so the newest entry is always visible
+        // (only if the user is already near the bottom — don't yank them
+        // away if they've scrolled up to read older events).
+        var nearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 120;
+        if (nearBottom) el.scrollTop = el.scrollHeight;
     }
 
     // ── QUICK LINKS ──
@@ -2239,9 +2294,12 @@
             { id: 'bandwidth', x: 0, y: 0, w: 6, h: 8 },
             { id: 'dhcp',      x: 6, y: 0, w: 6, h: 8 }
         ],
+        // ROUTER page: small router-stats panel on top, tall log buffer
+        // underneath. The log box gets 16 rows so it can display a deep
+        // scroll window without needing to drag-resize.
         router:   [
-            { id: 'router', x: 0, y: 0, w: 5, h: 8 },
-            { id: 'logs',   x: 5, y: 0, w: 7, h: 8 }
+            { id: 'router', x: 0, y: 0, w: 12, h: 4  },
+            { id: 'logs',   x: 0, y: 4, w: 12, h: 16 }
         ],
         monitor:  [
             { id: 'overview', x: 0, y: 0, w: 4, h: 5 },

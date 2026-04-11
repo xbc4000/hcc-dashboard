@@ -272,8 +272,13 @@ class RouterOSService {
     }
 
     async getLogs(count) {
+        // RouterOS /log/print returns everything in the log buffer (up to
+        // whatever the system log capacity is). We slice the tail so we
+        // get the newest entries. 300 gives the dashboard a deep scroll
+        // buffer for the router page while still being cheap over the API
+        // (~50KB of text at most).
         var entries = await this.command('/log/print');
-        return entries.slice(-(count || 20)).map(function(e) {
+        return entries.slice(-(count || 300)).map(function(e) {
             return { time: e.time || '', topics: e.topics || '', message: e.message || '' };
         });
     }
@@ -286,7 +291,7 @@ class RouterOSService {
             var interfaces = await this.getInterfaces();
             var firewall = await this.getFirewallCounters();
             var addressLists = await this.getAddressLists();
-            var logs = await this.getLogs(15);
+            var logs = await this.getLogs(300);
             return {
                 netwatch: netwatch, system: system, dhcp: dhcp,
                 interfaces: interfaces, firewall: firewall,
