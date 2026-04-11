@@ -2014,7 +2014,10 @@
     // Bump this key whenever we ship panel/layout changes that would
     // leave stale saved positions pointing at the wrong coordinates.
     // v3: introduced per630 + rpi pages, reworked servers as overview.
-    var LAYOUTS_KEY = 'hcc-layouts-v3';
+    // v4: hand-packed HOME layout (PAGE_LAYOUTS.home). Any v3 snapshots
+    //     of HOME were saved while the layout had overlapping panels, so
+    //     we don't want them winning over the new deterministic defaults.
+    var LAYOUTS_KEY = 'hcc-layouts-v4';
 
     function loadAllLayouts() {
         try { return JSON.parse(localStorage.getItem(LAYOUTS_KEY)) || {}; }
@@ -2091,8 +2094,15 @@
             }
         });
 
-        // Load HOME layout (first page shown) and apply positions before init
+        // Load HOME layout (first page shown) and apply positions before init.
+        // Priority: 1) user's saved layout, 2) PAGE_LAYOUTS.home hand-packed
+        // defaults. The defaults are 100% tiled across 12×20 so gridstack
+        // doesn't have to auto-position (which leaves gaps when the big
+        // pihole panel blocks efficient packing).
         var homeLayout = getPageLayout('home');
+        if (!homeLayout || !Array.isArray(homeLayout) || homeLayout.length === 0) {
+            homeLayout = PAGE_LAYOUTS.home;
+        }
         if (homeLayout && Array.isArray(homeLayout)) {
             homeLayout.forEach(function (item) {
                 var el = document.querySelector('[gs-id="' + item.id + '"]');
@@ -2178,8 +2188,35 @@
     var currentPage = 'home';
 
     // Dedicated page layouts: panels get resized for full-page view.
-    // x/y omitted → gridstack auto-positions using the order below.
+    // Every entry has explicit x/y so gridstack places deterministically.
+    //
+    // HOME is hand-packed 100% (no dead cells) across 12 cols × 20 rows.
+    // We override a few panel widths on HOME so there's no leftover
+    // right-strip dead space: servers 4w→6w, qmonitor 6w→8w, links 6w→12w.
+    // Users can still drag-resize in EDIT mode and their layout gets
+    // persisted to hcc-layouts-v3.home, overriding this default.
     var PAGE_LAYOUTS = {
+        home: [
+            // Row 0-2 (h=3): three 4-wide status panels across the top
+            { id: 'overview',  x: 0, y: 0,  w: 4,  h: 3 },
+            { id: 'router',    x: 4, y: 0,  w: 4,  h: 3 },
+            { id: 'dhcp',      x: 8, y: 0,  w: 4,  h: 3 },
+            // Row 3-5 (h=3): three more 4-wide panels
+            { id: 'netwatch',  x: 0, y: 3,  w: 4,  h: 3 },
+            { id: 'targets',   x: 4, y: 3,  w: 4,  h: 3 },
+            { id: 'bandwidth', x: 8, y: 3,  w: 4,  h: 3 },
+            // Row 6-13 (h=8): tall pihole left half
+            { id: 'pihole',    x: 0, y: 6,  w: 6,  h: 8 },
+            // Row 6-10 (h=5): servers on right of pihole, widened to 6 cols
+            { id: 'servers',   x: 6, y: 6,  w: 6,  h: 5 },
+            // Row 11-13 (h=3): logs under servers, full right-half width
+            { id: 'logs',      x: 6, y: 11, w: 6,  h: 3 },
+            // Row 14-17 (h=4): firewall + widened qmonitor
+            { id: 'firewall',  x: 0, y: 14, w: 4,  h: 4 },
+            { id: 'qmonitor',  x: 4, y: 14, w: 8,  h: 4 },
+            // Row 18-19 (h=2): links ticker full-width
+            { id: 'links',     x: 0, y: 18, w: 12, h: 2 }
+        ],
         pihole:   [
             { id: 'pihole',   x: 0, y: 0, w: 8, h: 12 },
             { id: 'qmonitor', x: 8, y: 0, w: 4, h: 12 }
