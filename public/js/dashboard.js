@@ -639,61 +639,35 @@
         html += '<div id="cc-spbr-now" class="cc-empty">Bridge idle — start playing on this device from any Spotify client</div>';
         html += '<div class="cc-divider"></div>';
         html += '<div class="cc-section-label">NAD-AVR REMOTE <span id="cc-spbr-cec-status" style="color:var(--text-muted);font-weight:400;margin-left:8px;">checking...</span></div>';
-        // Volume row
+        // Volume row — verified working on NAD T748
         html += '<div class="cc-row" style="gap:6px;">';
         html += '<button data-cec-key="volume-down" class="cc-btn cc-btn-cec cec-key">VOL −</button>';
         html += '<button data-cec-key="mute" class="cc-btn cc-btn-cec cec-key">MUTE</button>';
         html += '<button data-cec-key="volume-up" class="cc-btn cc-btn-cec cec-key">VOL +</button>';
         html += '</div>';
-        // Power row
+        // Power row — verified working on NAD T748
         html += '<div class="cc-row" style="gap:6px;">';
         html += '<button data-cec-pwr="on" class="cc-btn cec-pwr">POWER ON</button>';
         html += '<button data-cec-pwr="off" class="cc-btn cc-btn-warn cec-pwr">STANDBY</button>';
-        html += '<button data-cec-key="display-information" class="cc-btn cec-key">INFO</button>';
         html += '</div>';
-        // D-pad
-        html += '<div class="cec-dpad">';
-        html += '<button data-cec-key="up" class="cc-btn cec-key dpad-up">▲</button>';
-        html += '<button data-cec-key="left" class="cc-btn cec-key dpad-left">◀</button>';
-        html += '<button data-cec-key="select" class="cc-btn cec-key dpad-ok">OK</button>';
-        html += '<button data-cec-key="right" class="cc-btn cec-key dpad-right">▶</button>';
-        html += '<button data-cec-key="down" class="cc-btn cec-key dpad-down">▼</button>';
+        // HDMI source switching — verified working via active-source broadcast
+        // (set-stream-path directed variant doesn't work on NAD T748)
+        html += '<div class="cc-section-label" style="margin-top:8px;">HDMI INPUT</div>';
+        html += '<div class="cc-row" style="gap:6px;flex-wrap:wrap;">';
+        html += '<button data-cec-active="1.1.0.0" class="cc-btn cec-src">HDMI 1</button>';
+        html += '<button data-cec-active="1.2.0.0" class="cc-btn cec-src">HDMI 2 · RPi</button>';
+        html += '<button data-cec-active="1.3.0.0" class="cc-btn cec-src">HDMI 3</button>';
+        html += '<button data-cec-active="1.4.0.0" class="cc-btn cec-src">HDMI 4</button>';
         html += '</div>';
-        // Menu row
-        html += '<div class="cc-row" style="gap:6px;">';
-        html += '<button data-cec-key="root-menu" class="cc-btn cec-key">MENU</button>';
-        html += '<button data-cec-key="contents-menu" class="cc-btn cec-key">CONTENTS</button>';
-        html += '<button data-cec-key="exit" class="cc-btn cec-key">BACK</button>';
-        html += '</div>';
-        // Transport
+        // Transport — go to active source device (Blu-ray, etc), not the AVR
+        // Kept because user has a NAD Blu-ray paired that may honor these
+        html += '<div class="cc-section-label" style="margin-top:8px;">TRANSPORT (active source)</div>';
         html += '<div class="cc-row" style="gap:6px;">';
         html += '<button data-cec-key="rewind" class="cc-btn cec-key">⏪</button>';
         html += '<button data-cec-key="play" class="cc-btn cec-key">▶</button>';
         html += '<button data-cec-key="pause" class="cc-btn cec-key">⏸</button>';
         html += '<button data-cec-key="stop" class="cc-btn cec-key">⏹</button>';
         html += '<button data-cec-key="fast-forward" class="cc-btn cec-key">⏩</button>';
-        html += '</div>';
-        // Source select — addresses are HDMI inputs of the NAD, NOT siblings on TV.
-        // NAD is at 1.0.0.0, so its inputs are 1.1.0.0 / 1.2.0.0 / etc.
-        // Pi is on HDMI 2 of NAD (1.2.0.0).
-        html += '<div class="cc-section-label" style="margin-top:8px;">SOURCES (NAD HDMI INPUTS)</div>';
-        html += '<div class="cc-row" style="gap:6px;flex-wrap:wrap;">';
-        html += '<button data-cec-source="1.1.0.0" class="cc-btn cec-src">HDMI 1</button>';
-        html += '<button data-cec-source="1.2.0.0" class="cc-btn cec-src">HDMI 2 (RPi)</button>';
-        html += '<button data-cec-source="1.3.0.0" class="cc-btn cec-src">HDMI 3</button>';
-        html += '<button data-cec-source="1.4.0.0" class="cc-btn cec-src">HDMI 4</button>';
-        html += '</div>';
-        // Send via active-source broadcast (some AVRs only respond to that, not set-stream-path)
-        html += '<div class="cc-row" style="gap:6px;flex-wrap:wrap;margin-top:4px;">';
-        html += '<button data-cec-active="1.1.0.0" class="cc-btn cec-src">↗ HDMI1 active</button>';
-        html += '<button data-cec-active="1.2.0.0" class="cc-btn cec-src">↗ HDMI2 active</button>';
-        html += '<button data-cec-active="1.3.0.0" class="cc-btn cec-src">↗ HDMI3 active</button>';
-        html += '<button data-cec-active="1.4.0.0" class="cc-btn cec-src">↗ HDMI4 active</button>';
-        html += '</div>';
-        // Raw key input for power users
-        html += '<div class="cc-row" style="gap:6px;margin-top:6px;">';
-        html += '<input type="text" id="cc-spbr-cec-rawkey" class="cc-input" placeholder="custom ui-cmd (e.g. number-1, channel-up)" />';
-        html += '<button id="cc-spbr-cec-rawsend" class="cc-btn">SEND</button>';
         html += '</div>';
         html += '<div class="cc-divider"></div>';
         html += '<div class="cc-row">';
@@ -905,22 +879,11 @@
             // Power
             if (t.dataset && t.dataset.cecPwr === 'on') { cecPost('/cec/power/on', 'power on'); return; }
             if (t.dataset && t.dataset.cecPwr === 'off') { cecPost('/cec/power/off', 'standby'); return; }
-            // Source switch via set-stream-path (directed to AVR)
-            if (t.dataset && t.dataset.cecSource) {
-                cecPost('/cec/source/set', 'source ' + t.dataset.cecSource, { phys_addr: t.dataset.cecSource });
-                return;
-            }
-            // Source switch via active-source broadcast (some AVRs only honor this)
+            // Source switch via active-source broadcast (NAD T748 verified)
             if (t.dataset && t.dataset.cecActive) {
                 cecPost('/cec/source/active', 'active ' + t.dataset.cecActive, { phys_addr: t.dataset.cecActive });
                 return;
             }
-        });
-        // Raw key input
-        document.getElementById('cc-spbr-cec-rawsend').addEventListener('click', function () {
-            var k = document.getElementById('cc-spbr-cec-rawkey').value.trim();
-            if (!k) return;
-            cecPost('/cec/remote/' + encodeURIComponent(k), 'raw:' + k);
         });
 
         refreshBtn.addEventListener('click', function () {
