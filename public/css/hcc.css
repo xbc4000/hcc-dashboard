@@ -1995,8 +1995,12 @@ body.hcc-cursor-hidden * {
     #hcc-hud-tr, #hcc-hud-bl, #hcc-hud-tl, #hcc-hud-br { display: none; }
 }
 
-/* ── GALAXY FOLD — folded outer display (~280px) ──────── */
-@media (max-width: 360px) {
+/* ── GALAXY FOLD — folded outer display (cover screen, <520px) ──────── */
+/* Boundary aligned with the gridstack 1-col breakpoint at 520. Covers
+   every Z Fold cover screen generation: Fold1 ~280, Fold2 ~332,
+   Fold3-5 ~280-360, Fold6 ~376. Catching everything <520 means a
+   cleaner cutoff. */
+@media (max-width: 519px) {
     #hcc-sidebar {
         width: 44px;
     }
@@ -2030,8 +2034,11 @@ body.hcc-cursor-hidden * {
     .hostname-badge, #hcc-services-count, #hcc-live-group,
     #hcc-date, #hcc-session, #hcc-threat, #hcc-edit-btn,
     #hcc-reset-btn, #hcc-kiosk-btn, .header-divider { display: none !important; }
-    /* Single column grid items */
-    .grid-stack-item { width: 100% !important; left: 0 !important; }
+    /* DO NOT override .grid-stack-item width here — gridstack manages
+       absolute positioning, and overriding width/left causes panels to
+       collapse/disappear when transitioning to a wider viewport (Fold
+       inner display open). The 1-column gridstack breakpoint already
+       handles single-column stacking via columnOpts. */
     /* Network popup full screen */
     #hcc-net-popout {
         width: calc(100vw - 50px) !important;
@@ -2042,8 +2049,11 @@ body.hcc-cursor-hidden * {
     #hcc-net-popout[style*="left: -1200px"] { left: -1200px !important; }
 }
 
-/* ── GALAXY FOLD — unfolded inner display (~717px) ───── */
-@media (min-width: 600px) and (max-width: 800px) {
+/* ── GALAXY FOLD — unfolded inner display (~600-820px) ───── */
+/* Boundary aligned with gridstack's 2-col breakpoint at 820. Catches
+   every Z Fold inner display dimension across all generations
+   (Fold1 ~585, Fold2 ~600, Fold3-5 ~717, Fold6 ~820). */
+@media (min-width: 520px) and (max-width: 819px) {
     #hcc-sidebar { width: 56px; }
     #hcc-header { left: 56px; width: calc(100% - 56px); }
     #hcc-ticker { left: 56px; width: calc(100% - 56px); }

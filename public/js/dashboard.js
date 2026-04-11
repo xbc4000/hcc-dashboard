@@ -2173,19 +2173,67 @@
             disableResize: true,
             disableDrag: true,
             // ── Responsive columns ──
-            // Gridstack swaps to a smaller column count when the window
-            // crosses these breakpoints and re-packs items using a cached
-            // layout. HOME's hand-packed 12-col layout stays intact for
-            // the desktop case, and narrower widths get sensible stacking.
+            // Gridstack swaps column count when the window crosses these
+            // thresholds and re-packs items using a cached layout. HOME's
+            // hand-packed 12-col layout stays intact for desktop. Narrow
+            // widths get sensible stacking.
+            //
+            // Breakpoints chosen to match Galaxy Fold dimensions exactly:
+            //   ~280-376px (Fold outer cover)  → 1 col
+            //   ~600-820px (Fold inner main)   → 2 cols
+            //   ~820-1100px (tablets, narrow laptops) → 4 cols
+            //   ~1100-1400px (small desktops)  → 6 cols
+            //   >=1400px (full desktop)        → 12 cols
+            // The CSS @media breakpoints further down need to align with
+            // these boundaries — keep them in sync if you change anything.
             columnOpts: {
                 breakpointForWindow: true,
                 breakpoints: [
-                    { w: 520,  c: 1 },   // phones: single column
-                    { w: 820,  c: 2 },   // small tablets / phablets
-                    { w: 1100, c: 6 }    // large tablets / narrow laptops
-                    // >=1100px: default 12 columns (no breakpoint)
+                    { w: 520,  c: 1 },   // Fold outer cover, narrow phones
+                    { w: 820,  c: 2 },   // Fold inner display, phablets
+                    { w: 1100, c: 4 },   // tablets
+                    { w: 1400, c: 6 }    // narrow laptops
+                    // >=1400px: default 12 columns (no breakpoint entry)
                 ]
             }
+        });
+
+        // ── Force re-evaluation of breakpoints on viewport changes ──
+        // Gridstack's onResize hooks window resize, but on foldable phones
+        // (Galaxy Fold inner display open/close) and screen rotations the
+        // resize event timing is unreliable — sometimes batched with
+        // orientationchange, sometimes delayed past gridstack's debounce.
+        // Explicitly re-trigger gridstack's resize logic on:
+        //   - orientationchange  (rotation, fold state change on some devices)
+        //   - visibilitychange   (app foregrounded — fold state may have
+        //                         changed while the tab was hidden)
+        //   - matchMedia for our breakpoint widths (most reliable signal
+        //                         for Fold transitions on Chrome/Brave Android)
+        function forceGridResize() {
+            if (!hccGrid) return;
+            // Wait one frame for the new viewport dimensions to settle,
+            // then ask gridstack to re-check its column count and re-pack
+            // items. We also nudge a synthetic resize event in case
+            // anything else (effects.js canvas, sidebar particles) is
+            // listening on window.resize.
+            window.requestAnimationFrame(function () {
+                try { hccGrid.onResize(); } catch (e) {}
+                window.dispatchEvent(new Event('resize'));
+            });
+        }
+        window.addEventListener('orientationchange', forceGridResize);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) forceGridResize();
+        });
+        // Watch each breakpoint as a media query — fires the moment the
+        // viewport crosses the boundary, more reliable than resize events
+        // on foldable transitions.
+        [520, 820, 1100, 1400].forEach(function (w) {
+            try {
+                var mq = window.matchMedia('(min-width: ' + w + 'px)');
+                if (mq.addEventListener) mq.addEventListener('change', forceGridResize);
+                else if (mq.addListener) mq.addListener(forceGridResize); // legacy
+            } catch (e) {}
         });
 
         // Restore 'grid-stack-item' class on non-home panels so makeWidget()
