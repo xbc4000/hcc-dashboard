@@ -1877,8 +1877,19 @@
             disableDrag: true
         });
 
-        // Save layout on any change (only when not suppressed + in edit mode
-        // OR user-initiated move/resize). We gate on currentPage inside.
+        // On first load, gridstack has registered ALL grid-stack-item elements
+        // including panels that belong to other pages. Hide + remove those now
+        // so only HOME panels are tracked. They'll be re-added as users navigate.
+        var allItemsInit = document.querySelectorAll('.grid-stack-item');
+        allItemsInit.forEach(function (el) {
+            var pages = (el.dataset.pages || 'home').split(',');
+            if (pages.indexOf('home') === -1) {
+                el.classList.add('hcc-page-hidden');
+                try { hccGrid.removeWidget(el, false); } catch (e) {}
+            }
+        });
+
+        // Save layout on any change (gated by currentPage + suppressSave inside)
         hccGrid.on('change', function () { saveLayout(); });
 
         // Edit mode toggle
@@ -1955,24 +1966,51 @@
 
     function switchPage(pageId) {
         if (pageId === currentPage) return;
+        if (!hccGrid) { currentPage = pageId; return; }
 
-        // Snapshot the CURRENT page's layout before leaving so we can restore
-        // exactly this arrangement next time. Only save if the page has
-        // visible panels (otherwise we'd save an empty layout).
-        if (hccGrid) {
-            var currentSnapshot = snapshotCurrentLayout();
-            if (currentSnapshot.length > 0) {
-                setPageLayout(currentPage, currentSnapshot);
-            }
+        // ── Snapshot current page BEFORE removing anything ──
+        // We persist only the panels that belong to this page, so HOME's
+        // snapshot doesn't include PI-HOLE stragglers, etc.
+        var currentVisible = document.querySelectorAll('.grid-stack-item:not(.hcc-page-hidden)');
+        if (currentVisible.length > 0) {
+            var snap = Array.prototype.map.call(currentVisible, function (el) {
+                return {
+                    id: el.getAttribute('gs-id'),
+                    x: parseInt(el.getAttribute('gs-x')),
+                    y: parseInt(el.getAttribute('gs-y')),
+                    w: parseInt(el.getAttribute('gs-w')),
+                    h: parseInt(el.getAttribute('gs-h'))
+                };
+            });
+            setPageLayout(currentPage, snap);
         }
 
         currentPage = pageId;
         suppressSave = true;
 
-        // Show/hide panels based on data-pages
-        var allItems = document.querySelectorAll('.grid-stack-item');
-        if (hccGrid) hccGrid.batchUpdate(true);
+        hccGrid.batchUpdate(true);
 
+        // ── Step 1: REMOVE all widgets from gridstack tracking ──
+        // removeWidget(el, false) removes from gridstack but keeps the DOM
+        // element. We'll re-add the ones we want visible.
+        var allItems = document.querySelectorAll('.grid-stack-item');
+        allItems.forEach(function (el) {
+            try { hccGrid.removeWidget(el, false); } catch (e) {}
+        });
+
+        // ── Step 2: Figure out the layout we want for this page ──
+        var savedLayout = getPageLayout(pageId);
+        var layoutToApply = null;
+        if (savedLayout && Array.isArray(savedLayout) && savedLayout.length > 0) {
+            layoutToApply = savedLayout;
+        } else if (PAGE_LAYOUTS[pageId]) {
+            // First visit — use defaults (no x/y, let gridstack auto-position)
+            layoutToApply = PAGE_LAYOUTS[pageId].map(function (layout) {
+                return { id: layout.id, w: layout.w, h: layout.h };
+            });
+        }
+
+        // ── Step 3: Hide all panels via CSS, show only the ones on this page ──
         allItems.forEach(function (el) {
             var pages = (el.dataset.pages || 'home').split(',');
             if (pages.indexOf(pageId) !== -1) {
@@ -1982,28 +2020,35 @@
             }
         });
 
-        // Priority 1: restore saved user layout for this page
-        // Priority 2: fall back to the default PAGE_LAYOUTS dimensions
-        // Priority 3: let gridstack auto-position
-        var savedLayout = getPageLayout(pageId);
-        if (savedLayout && Array.isArray(savedLayout) && savedLayout.length > 0 && hccGrid) {
-            savedLayout.forEach(function (item) {
-                var el = document.querySelector('[gs-id="' + item.id + '"]');
-                if (el) hccGrid.update(el, { x: item.x, y: item.y, w: item.w, h: item.h });
-            });
-        } else if (PAGE_LAYOUTS[pageId] && hccGrid) {
-            // First visit to this page — apply defaults, gridstack auto-positions
-            PAGE_LAYOUTS[pageId].forEach(function (layout) {
-                var el = document.querySelector('[gs-id="' + layout.id + '"]');
-                if (el) hccGrid.update(el, { w: layout.w, h: layout.h, autoPosition: true });
+        // ── Step 4: Re-add the visible panels to gridstack in the desired layout ──
+        // Build a lookup of what the user wants per panel
+        var layoutById = {};
+        if (layoutToApply) {
+            layoutToApply.forEach(function (item) {
+                layoutById[item.id] = item;
             });
         }
 
-        if (hccGrid) {
-            hccGrid.batchUpdate(false);
-            // Compact only when there's no saved layout to respect
-            if (!savedLayout) hccGrid.compact();
-        }
+        // Collect visible panels and add them with their target positions
+        var visiblePanels = document.querySelectorAll('.grid-stack-item:not(.hcc-page-hidden)');
+        visiblePanels.forEach(function (el) {
+            var id = el.getAttribute('gs-id');
+            var target = layoutById[id];
+            var addOpts;
+            if (target && target.x !== undefined && target.y !== undefined) {
+                // Saved user layout — exact position
+                addOpts = { x: target.x, y: target.y, w: target.w, h: target.h };
+            } else if (target) {
+                // Default layout — size only, auto-position
+                addOpts = { w: target.w, h: target.h, autoPosition: true };
+            } else {
+                // No layout entry — keep current attrs, auto-position
+                addOpts = { autoPosition: true };
+            }
+            try { hccGrid.makeWidget(el, addOpts); } catch (e) {}
+        });
+
+        hccGrid.batchUpdate(false);
 
         // Scroll to top so the new page starts fresh
         var main = document.getElementById('hcc-main');
@@ -2016,18 +2061,14 @@
         });
 
         // Lift the save gate after the grid settles, then save the new state
-        // (captures any auto-positioning gridstack did so it persists for
-        // next visit)
+        // (captures any auto-positioning gridstack did on first visit so
+        // subsequent visits are identical)
         setTimeout(function () {
             suppressSave = false;
-            // Only save if we didn't already have a layout for this page —
-            // otherwise a snapshot here would overwrite user customizations
-            // made later on this page with the initial auto-positioned state
             if (!getPageLayout(pageId)) {
                 var newSnapshot = snapshotCurrentLayout();
                 if (newSnapshot.length > 0) setPageLayout(pageId, newSnapshot);
             }
-            // Re-apply effects after layout change
             if (typeof window._hccApplyArcs === 'function') window._hccApplyArcs();
             if (typeof window._hccApplyRings === 'function') window._hccApplyRings();
         }, 400);
