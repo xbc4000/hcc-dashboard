@@ -2171,7 +2171,21 @@
             float: false,
             handle: '.hcc-panel-header',
             disableResize: true,
-            disableDrag: true
+            disableDrag: true,
+            // ── Responsive columns ──
+            // Gridstack swaps to a smaller column count when the window
+            // crosses these breakpoints and re-packs items using a cached
+            // layout. HOME's hand-packed 12-col layout stays intact for
+            // the desktop case, and narrower widths get sensible stacking.
+            columnOpts: {
+                breakpointForWindow: true,
+                breakpoints: [
+                    { w: 520,  c: 1 },   // phones: single column
+                    { w: 820,  c: 2 },   // small tablets / phablets
+                    { w: 1100, c: 6 }    // large tablets / narrow laptops
+                    // >=1100px: default 12 columns (no breakpoint)
+                ]
+            }
         });
 
         // Restore 'grid-stack-item' class on non-home panels so makeWidget()
@@ -2376,16 +2390,23 @@
         // IMPORTANT: gridstack's makeWidget() -> _writeAttr() REMOVES gs-id from
         // the element if the options we pass don't include an `id`. That would
         // break subsequent snapshot/lookup passes. So always pass id explicitly.
+        //
+        // When the grid is in a reduced-column mode (mobile/tablet), the x/y
+        // coordinates baked into PAGE_LAYOUTS don't make sense — they were
+        // computed for 12 columns. Strip them so gridstack vertically stacks
+        // panels in declaration order instead of clamping+overlapping.
+        var narrowMode = hccGrid.getColumn() < 12;
         var visiblePanels = document.querySelectorAll('.grid-stack-item:not(.hcc-page-hidden)');
         visiblePanels.forEach(function (el) {
             var id = el.getAttribute('gs-id');
             var target = layoutById[id];
             var addOpts;
-            if (target && target.x !== undefined && target.y !== undefined) {
-                // Saved user layout — exact position
+            if (target && target.x !== undefined && target.y !== undefined && !narrowMode) {
+                // Saved user layout — exact position (only trusted at 12 cols)
                 addOpts = { id: id, x: target.x, y: target.y, w: target.w, h: target.h };
             } else if (target) {
-                // Default layout — size only, auto-position
+                // Default layout — size only, auto-position. In narrow mode
+                // gridstack will clamp w to the current column count.
                 addOpts = { id: id, w: target.w, h: target.h, autoPosition: true };
             } else {
                 // No layout entry — keep current attrs, auto-position
