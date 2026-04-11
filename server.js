@@ -78,7 +78,6 @@ app.set('poller', poller);
 
 app.listen(PORT, '0.0.0.0', function() {
     console.log('[HCC] Dashboard running on port ' + PORT);
-    console.log('[HCC] Pi-hole: ' + (process.env.PIHOLE_URL || 'not configured'));
     console.log('[HCC] Prometheus: ' + (process.env.PROMETHEUS_URL || 'not configured'));
     console.log('[HCC] RouterOS: ' + (process.env.ROUTEROS_HOST || 'not configured'));
     console.log('[HCC] Grafana: ' + (process.env.GRAFANA_URL || 'not configured'));
