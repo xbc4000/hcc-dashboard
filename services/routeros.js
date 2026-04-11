@@ -209,11 +209,20 @@ class RouterOSService {
     async getDHCPLeases() {
         var entries = await this.command('/ip/dhcp-server/lease/print');
         return entries.map(function(e) {
+            // dynamic=false on MikroTik = static reservation (not a real
+            // DHCP lease). Those flip between bound/waiting based on ARP
+            // probes, which looks like flicker in the UI. The frontend
+            // uses this flag to label them RESERVED regardless of status.
             return {
-                address: e.address || '', macAddress: e['mac-address'] || '',
-                hostName: e['host-name'] || '', server: e.server || '',
-                status: e.status || '', lastSeen: e['last-seen'] || '',
-                comment: e.comment || ''
+                address: e.address || '',
+                macAddress: e['mac-address'] || '',
+                hostName: e['host-name'] || '',
+                server: e.server || '',
+                status: e.status || '',
+                lastSeen: e['last-seen'] || '',
+                comment: e.comment || '',
+                dynamic: e.dynamic !== 'false',
+                disabled: e.disabled === 'true'
             };
         });
     }

@@ -1811,18 +1811,54 @@
     function renderDHCP(dhcp) {
         var el = document.getElementById('dhcp-body');
         if (!dhcp||!Array.isArray(dhcp)) { el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>'; return; }
-        var bound = dhcp.filter(function(l){return l.status==='bound';});
-        var html = '<div style="margin-bottom:6px;font-size:0.8rem;color:var(--text-muted);letter-spacing:2px;"><span style="color:var(--green);">'+bound.length+' ACTIVE</span> / '+dhcp.length+' TOTAL</div>';
+
+        // Classify leases into three stable categories:
+        //   BOUND    — dynamic lease, client actively using it
+        //   RESERVED — static reservation (dynamic=false). Labelled as
+        //              RESERVED regardless of current ARP probe state so
+        //              it doesn't flicker between bound/waiting every poll.
+        //   EXPIRED  — dynamic lease whose client is currently offline
+        //              (status != bound). Neutral label instead of the
+        //              misleading "WAITING" RouterOS reports.
+        var bound = [], reserved = [], expired = [];
         dhcp.forEach(function(l) {
-            var isBound = l.status === 'bound';
-            var name = l.hostName || l.comment || l.macAddress || 'unknown';
-            html += '<div class="service-row">';
-            html += '<div class="service-name"><div class="status-dot-sm '+(isBound?'up':'unknown')+'"></div>';
-            html += '<div><span>'+esc(name)+'</span><br><span style="font-size:0.75rem;color:var(--text-muted);">'+esc(l.address)+' — '+esc(l.server)+'</span></div></div>';
-            html += '<div style="font-size:0.8rem;color:'+(isBound?'var(--green)':'var(--text-muted)')+';">'+l.status.toUpperCase()+'</div>';
-            html += '</div>';
+            if (l.disabled) return;
+            if (!l.dynamic) reserved.push(l);
+            else if (l.status === 'bound') bound.push(l);
+            else expired.push(l);
         });
+
+        var total = bound.length + reserved.length + expired.length;
+        var html = '<div style="margin-bottom:6px;font-size:0.8rem;color:var(--text-muted);letter-spacing:2px;">';
+        html += '<span style="color:var(--green);">'+bound.length+' BOUND</span>';
+        if (reserved.length) html += ' · <span style="color:var(--cyan);">'+reserved.length+' RESERVED</span>';
+        if (expired.length)  html += ' · <span style="color:var(--text-muted);">'+expired.length+' EXPIRED</span>';
+        html += ' / '+total+' TOTAL</div>';
+
+        // Render order: active first, then reservations, then expired.
+        bound.forEach(function(l)    { html += dhcpRow(l, 'bound');    });
+        reserved.forEach(function(l) { html += dhcpRow(l, 'reserved'); });
+        expired.forEach(function(l)  { html += dhcpRow(l, 'expired');  });
+
         el.innerHTML = html;
+    }
+
+    function dhcpRow(l, kind) {
+        var name = l.hostName || l.comment || l.macAddress || 'unknown';
+        var dotClass, statusText, statusColor;
+        if (kind === 'bound') {
+            dotClass = 'up';      statusText = 'BOUND';    statusColor = 'var(--green)';
+        } else if (kind === 'reserved') {
+            dotClass = 'unknown'; statusText = 'RESERVED'; statusColor = 'var(--cyan)';
+        } else {
+            dotClass = 'down';    statusText = 'EXPIRED';  statusColor = 'var(--text-muted)';
+        }
+        var html = '<div class="service-row">';
+        html += '<div class="service-name"><div class="status-dot-sm '+dotClass+'"></div>';
+        html += '<div><span>'+esc(name)+'</span><br><span style="font-size:0.75rem;color:var(--text-muted);">'+esc(l.address)+' — '+esc(l.server)+'</span></div></div>';
+        html += '<div style="font-size:0.8rem;color:'+statusColor+';">'+statusText+'</div>';
+        html += '</div>';
+        return html;
     }
 
     // ── NETWORK BANDWIDTH ──
