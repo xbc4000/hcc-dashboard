@@ -48,6 +48,8 @@
             renderQueryMonitor(d.pihole);
             renderServers(d.prometheus);
             renderPer730(d.prometheus);
+            renderPer630(d.prometheus);
+            renderRpi(d.prometheus);
             renderNetwatch(d.netwatch);
             renderTargets(d.prometheus);
             renderFirewall(d.firewall, d.addressLists);
@@ -280,15 +282,25 @@
         return n.toLocaleString();
     }
 
-    // ── PER730XD DEDICATED PAGE ──
+    // ── iDRAC DEDICATED DETAIL PAGE (PER730XD / PER630) ──
+    // Shared renderer: given a server key + body id + iDRAC host, paints a
+    // full hardware breakdown. Used by both PER730 and PER630 pages so the
+    // layout/style stays in sync.
     function renderPer730(promData) {
-        var el = document.getElementById('per730-body');
+        renderIdracDetail(promData, 'per730xd', 'per730-body', '10.30.30.10', 'Dell PowerEdge R730XD');
+    }
+    function renderPer630(promData) {
+        renderIdracDetail(promData, 'per630',   'per630-body', '10.30.30.11', 'Dell PowerEdge R630');
+    }
+
+    function renderIdracDetail(promData, serverKey, bodyId, idracHost, modelFallback) {
+        var el = document.getElementById(bodyId);
         if (!el) return;
-        if (!promData || !promData.servers || !promData.servers.per730xd) {
+        if (!promData || !promData.servers || !promData.servers[serverKey]) {
             el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>';
             return;
         }
-        var s = promData.servers.per730xd;
+        var s = promData.servers[serverKey];
         var hColor = s.health === 'OK' ? 'var(--green)' : 'var(--red)';
         var pp = s.powerCap ? (s.power / s.powerCap * 100) : 0;
 
@@ -299,12 +311,12 @@
         html += '<div class="per730-hero-left">';
         html += '<div class="status-dot-sm '+(s.status==='up'?'up':'down')+'" style="width:14px;height:14px;"></div>';
         html += '<div><div class="per730-name">'+esc(s.name)+'</div>';
-        html += '<div class="per730-model">'+esc(s.model || 'Dell PowerEdge R730XD')+'</div>';
+        html += '<div class="per730-model">'+esc(s.model || modelFallback)+'</div>';
         if (s.serial) html += '<div class="per730-serial">SN: '+esc(s.serial)+'</div>';
         html += '</div></div>';
         html += '<div class="per730-hero-right">';
         html += '<div class="per730-health" style="color:'+hColor+';border-color:'+hColor+';text-shadow:0 0 12px '+hColor+';">'+esc(s.health)+'</div>';
-        html += '<div class="per730-instance">'+esc(s.instance || '10.30.30.10')+'</div>';
+        html += '<div class="per730-instance">'+esc(s.instance || idracHost)+'</div>';
         html += '</div></div>';
 
         // ── Top stat boxes ──
@@ -506,14 +518,182 @@
         html += '<div class="per730-section" style="margin-top:14px;">';
         html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--cyan);"></span>QUICK ACTIONS</div>';
         html += '<div class="per730-actions">';
-        html += '<a href="https://10.30.30.10" target="_blank" class="per730-action"><span class="per730-action-icon">⌘</span><span>iDRAC</span></a>';
-        html += '<a href="https://10.30.30.10/restgui/start.html#/console" target="_blank" class="per730-action"><span class="per730-action-icon">▦</span><span>CONSOLE</span></a>';
-        html += '<a href="https://10.30.30.10/restgui/start.html#/storage" target="_blank" class="per730-action"><span class="per730-action-icon">▤</span><span>STORAGE</span></a>';
-        html += '<a href="https://10.30.30.10/restgui/start.html#/power" target="_blank" class="per730-action"><span class="per730-action-icon">⚡</span><span>POWER</span></a>';
+        html += '<a href="https://'+idracHost+'" target="_blank" class="per730-action"><span class="per730-action-icon">⌘</span><span>iDRAC</span></a>';
+        html += '<a href="https://'+idracHost+'/restgui/start.html#/console" target="_blank" class="per730-action"><span class="per730-action-icon">▦</span><span>CONSOLE</span></a>';
+        html += '<a href="https://'+idracHost+'/restgui/start.html#/storage" target="_blank" class="per730-action"><span class="per730-action-icon">▤</span><span>STORAGE</span></a>';
+        html += '<a href="https://'+idracHost+'/restgui/start.html#/power" target="_blank" class="per730-action"><span class="per730-action-icon">⚡</span><span>POWER</span></a>';
         html += '</div></div>';
 
         html += '</div>'; // end grid
         el.innerHTML = html;
+    }
+
+    // ── RASPBERRY PI DEDICATED DETAIL PAGE ──
+    // Uses the same per730-* CSS classes as the iDRAC detail view so visual
+    // style stays consistent. Data source: promData.servers.rpi (node_exporter).
+    function renderRpi(promData) {
+        var el = document.getElementById('rpi-body');
+        if (!el) return;
+        if (!promData || !promData.servers || !promData.servers.rpi) {
+            el.innerHTML = '<div class="panel-loading">AWAITING DATA...</div>';
+            return;
+        }
+        var s = promData.servers.rpi;
+        var up = s.status === 'up';
+        var hColor = up ? 'var(--green)' : 'var(--red)';
+        var hText  = up ? 'ONLINE' : 'OFFLINE';
+
+        var html = '<div class="per730-grid">';
+
+        // ── Hero ──
+        html += '<div class="per730-hero">';
+        html += '<div class="per730-hero-left">';
+        html += '<div class="status-dot-sm '+(up?'up':'down')+'" style="width:14px;height:14px;"></div>';
+        html += '<div><div class="per730-name">'+esc(s.name || 'Raspberry Pi')+'</div>';
+        html += '<div class="per730-model">Raspberry Pi 4 Model B · DietPi</div>';
+        html += '<div class="per730-serial">'+esc(s.role || 'Monitoring Stack')+'</div>';
+        html += '</div></div>';
+        html += '<div class="per730-hero-right">';
+        html += '<div class="per730-health" style="color:'+hColor+';border-color:'+hColor+';text-shadow:0 0 12px '+hColor+';">'+hText+'</div>';
+        html += '<div class="per730-instance">'+esc(s.instance || '10.40.40.2:9100')+'</div>';
+        html += '</div></div>';
+
+        // ── Top stat boxes (CPU / RAM / DISK / TEMP) ──
+        html += '<div class="stat-grid stat-grid-4" style="margin-top:14px;">';
+        html += statBox('CPU',  s.cpu !== null ? s.cpu.toFixed(1)+'%'  : '---', lvlColor(s.cpu));
+        html += statBox('RAM',  s.ram !== null ? s.ram.toFixed(1)+'%'  : '---', lvlColor(s.ram));
+        html += statBox('DISK', s.disk!== null ? s.disk.toFixed(1)+'%' : '---', lvlColor(s.disk));
+        html += statBox('TEMP', s.temp!== null ? s.temp.toFixed(1)+'°C': '---', s.temp<60?'green':(s.temp<75?'orange':'red'));
+        html += '</div>';
+
+        // ── 2-column layout ──
+        html += '<div class="per730-cols">';
+
+        // ── LEFT COLUMN: resource utilization ──
+        html += '<div class="per730-col">';
+
+        // CPU
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--cyan);"></span>CPU UTILIZATION</div>';
+        if (s.cpu !== null) {
+            html += '<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:4px;"><span class="stat-label">USAGE</span><span style="color:'+lvlVar(s.cpu)+';font-weight:700;">'+s.cpu.toFixed(2)+'%</span></div>';
+            html += '<div class="progress-wrap" style="height:10px;"><div class="progress-fill '+lvl(s.cpu)+'" style="width:'+Math.min(100,s.cpu)+'%;"></div></div>';
+        } else {
+            html += '<div class="panel-loading" style="padding:6px 0;">NO DATA</div>';
+        }
+        if (s.load !== null) {
+            html += '<div class="per730-kv" style="margin-top:10px;">';
+            html += row('Load (1m)', '<span style="color:var(--text-bright);font-weight:700;">'+s.load.toFixed(2)+'</span>');
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // MEMORY
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--cyan-bright);"></span>MEMORY</div>';
+        if (s.ram !== null) {
+            html += '<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:4px;"><span class="stat-label">USED</span><span style="color:'+lvlVar(s.ram)+';font-weight:700;">'+s.ram.toFixed(2)+'%</span></div>';
+            html += '<div class="progress-wrap" style="height:10px;"><div class="progress-fill '+lvl(s.ram)+'" style="width:'+Math.min(100,s.ram)+'%;"></div></div>';
+        } else {
+            html += '<div class="panel-loading" style="padding:6px 0;">NO DATA</div>';
+        }
+        html += '</div>';
+
+        // STORAGE
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--purple);"></span>ROOT FILESYSTEM</div>';
+        if (s.disk !== null) {
+            html += '<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:4px;"><span class="stat-label">USED</span><span style="color:'+lvlVar(s.disk)+';font-weight:700;">'+s.disk.toFixed(2)+'%</span></div>';
+            html += '<div class="progress-wrap" style="height:10px;"><div class="progress-fill '+lvl(s.disk)+'" style="width:'+Math.min(100,s.disk)+'%;"></div></div>';
+            html += '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">mount: /</div>';
+        } else {
+            html += '<div class="panel-loading" style="padding:6px 0;">NO DATA</div>';
+        }
+        html += '</div>';
+
+        html += '</div>'; // end LEFT col
+
+        // ── RIGHT COLUMN: system info ──
+        html += '<div class="per730-col">';
+
+        // THERMAL
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--red);"></span>THERMAL</div>';
+        if (s.temp !== null) {
+            var tc = s.temp < 60 ? 'var(--green)' : (s.temp < 75 ? 'var(--orange)' : 'var(--red)');
+            html += '<div class="per730-list-item">';
+            html += '<span class="per730-list-id">cpu-thermal</span>';
+            html += '<span style="color:'+tc+';font-weight:700;">'+s.temp.toFixed(1)+'°C</span>';
+            html += '</div>';
+        } else {
+            html += '<div class="panel-loading" style="padding:6px 0;">NO DATA</div>';
+        }
+        html += '</div>';
+
+        // SYSTEM
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--green);"></span>SYSTEM</div>';
+        html += '<div class="per730-kv">';
+        html += row('Hostname', '<span style="color:var(--text-bright);">rpi.home</span>');
+        html += row('VLAN', '<span style="color:var(--cyan);">VLAN40</span>');
+        html += row('IP', '<span style="color:var(--text-bright);">10.40.40.2</span>');
+        html += row('OS', '<span style="color:var(--text-muted);">DietPi (Debian)</span>');
+        if (s.uptime !== null) html += row('Uptime', '<span style="color:var(--green);">'+fmtUptime(s.uptime)+'</span>');
+        html += '</div>';
+        html += '</div>';
+
+        // HOSTED SERVICES
+        html += '<div class="per730-section">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--orange);"></span>HOSTED SERVICES</div>';
+        [
+            { name: 'Prometheus',      port: '9090' },
+            { name: 'Grafana',         port: '3000' },
+            { name: 'Portainer',       port: '9002' },
+            { name: 'InfluxDB',        port: '8086' },
+            { name: 'node_exporter',   port: '9100' },
+            { name: 'idrac-exporter',  port: '9348' },
+            { name: 'pihole-exporter', port: '9617' },
+            { name: 'HCC Dashboard',   port: '3080' },
+            { name: 'HCC Spotify Bridge', port: '3081' }
+        ].forEach(function(svc) {
+            html += '<div class="per730-list-item">';
+            html += '<span class="per730-list-id">'+esc(svc.name)+'</span>';
+            html += '<span class="per730-list-detail"><span style="color:var(--text-muted);">:'+svc.port+'</span></span>';
+            html += '<span style="color:var(--green);font-size:0.7rem;">●</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+
+        html += '</div>'; // end RIGHT col
+        html += '</div>'; // end cols
+
+        // ── Quick actions ──
+        html += '<div class="per730-section" style="margin-top:14px;">';
+        html += '<div class="per730-section-title"><span class="per730-bullet" style="background:var(--cyan);"></span>QUICK ACTIONS</div>';
+        html += '<div class="per730-actions">';
+        html += '<a href="http://10.40.40.2:3000" target="_blank" class="per730-action"><span class="per730-action-icon">◨</span><span>GRAFANA</span></a>';
+        html += '<a href="http://10.40.40.2:9090" target="_blank" class="per730-action"><span class="per730-action-icon">▤</span><span>PROMETHEUS</span></a>';
+        html += '<a href="http://10.40.40.2:9002" target="_blank" class="per730-action"><span class="per730-action-icon">⌘</span><span>PORTAINER</span></a>';
+        html += '<a href="http://10.40.40.2:8086" target="_blank" class="per730-action"><span class="per730-action-icon">≡</span><span>INFLUXDB</span></a>';
+        html += '</div></div>';
+
+        html += '</div>'; // end grid
+        el.innerHTML = html;
+    }
+
+    // Helper: return a CSS var string for the color level (used by gauges).
+    function lvlVar(pct) {
+        if (pct === null || pct === undefined) return 'var(--text-muted)';
+        if (pct < 60) return 'var(--green)';
+        if (pct < 85) return 'var(--orange)';
+        return 'var(--red)';
+    }
+    // Helper: return a keyword for statBox() color slot.
+    function lvlColor(pct) {
+        if (pct === null || pct === undefined) return 'cyan';
+        if (pct < 60) return 'green';
+        if (pct < 85) return 'orange';
+        return 'red';
     }
 
     // ── CONTROL CENTER ──
@@ -1795,7 +1975,10 @@
 
     // Per-page layouts stored as a single object in localStorage
     //   { home: [{id,x,y,w,h}, ...], pihole: [...], servers: [...], ... }
-    var LAYOUTS_KEY = 'hcc-layouts-v2';
+    // Bump this key whenever we ship panel/layout changes that would
+    // leave stale saved positions pointing at the wrong coordinates.
+    // v3: introduced per630 + rpi pages, reworked servers as overview.
+    var LAYOUTS_KEY = 'hcc-layouts-v3';
 
     function loadAllLayouts() {
         try { return JSON.parse(localStorage.getItem(LAYOUTS_KEY)) || {}; }
@@ -1934,6 +2117,8 @@
         { id: 'pihole',   icon: 'PH', label: 'PI-HOLE',    color: '#00ff88' },
         { id: 'servers',  icon: 'SV', label: 'SERVERS',    color: '#ff6600' },
         { id: 'per730',   icon: 'P7', label: 'PER730XD',   color: '#00B7FF' },
+        { id: 'per630',   icon: 'P6', label: 'PER630',     color: '#8DD8FF' },
+        { id: 'rpi',      icon: 'RP', label: 'RPI',        color: '#88FF88' },
         { id: 'firewall', icon: 'FW', label: 'FIREWALL',   color: '#ff2244' },
         { id: 'network',  icon: 'NW', label: 'NETWORK',    color: '#B986F2' },
         { id: 'router',   icon: 'RT', label: 'ROUTER',     color: '#FFD700' },
@@ -1943,21 +2128,42 @@
 
     var currentPage = 'home';
 
-    // Dedicated page layouts: panels get resized for full-page view
+    // Dedicated page layouts: panels get resized for full-page view.
+    // x/y omitted → gridstack auto-positions using the order below.
     var PAGE_LAYOUTS = {
-        pihole:   [{ id: 'pihole', w: 8, h: 12 }, { id: 'qmonitor', w: 4, h: 12 }],
-        servers:  [{ id: 'servers', w: 12, h: 12 }],
-        per730:   [{ id: 'per730', w: 12, h: 12 }],
-        firewall: [{ id: 'firewall', w: 6, h: 10 }, { id: 'netwatch', w: 6, h: 10 }],
-        network:  [{ id: 'bandwidth', w: 6, h: 8 }, { id: 'dhcp', w: 6, h: 8 }],
-        router:   [{ id: 'router', w: 5, h: 8 }, { id: 'logs', w: 7, h: 8 }],
-        monitor:  [
-            { id: 'overview', w: 4, h: 5 },
-            { id: 'targets',  w: 4, h: 5 },
-            { id: 'netwatch', w: 4, h: 5 },
-            { id: 'qmonitor', w: 12, h: 6 }
+        pihole:   [
+            { id: 'pihole',   x: 0, y: 0, w: 8, h: 12 },
+            { id: 'qmonitor', x: 8, y: 0, w: 4, h: 12 }
         ],
-        control:  [{ id: 'control', w: 12, h: 12 }]
+        // SERVERS = overview page: all 3 detail panels stacked full-width.
+        // Each links to its dedicated page via the sidebar (P7/P6/RP).
+        servers:  [
+            { id: 'per730', x: 0, y: 0,  w: 12, h: 10 },
+            { id: 'per630', x: 0, y: 10, w: 12, h: 10 },
+            { id: 'rpi',    x: 0, y: 20, w: 12, h: 8  }
+        ],
+        per730:   [{ id: 'per730', x: 0, y: 0, w: 12, h: 12 }],
+        per630:   [{ id: 'per630', x: 0, y: 0, w: 12, h: 12 }],
+        rpi:      [{ id: 'rpi',    x: 0, y: 0, w: 12, h: 10 }],
+        firewall: [
+            { id: 'firewall', x: 0, y: 0, w: 6, h: 10 },
+            { id: 'netwatch', x: 6, y: 0, w: 6, h: 10 }
+        ],
+        network:  [
+            { id: 'bandwidth', x: 0, y: 0, w: 6, h: 8 },
+            { id: 'dhcp',      x: 6, y: 0, w: 6, h: 8 }
+        ],
+        router:   [
+            { id: 'router', x: 0, y: 0, w: 5, h: 8 },
+            { id: 'logs',   x: 5, y: 0, w: 7, h: 8 }
+        ],
+        monitor:  [
+            { id: 'overview', x: 0, y: 0, w: 4, h: 5 },
+            { id: 'targets',  x: 4, y: 0, w: 4, h: 5 },
+            { id: 'netwatch', x: 8, y: 0, w: 4, h: 5 },
+            { id: 'qmonitor', x: 0, y: 5, w: 12, h: 6 }
+        ],
+        control:  [{ id: 'control', x: 0, y: 0, w: 12, h: 12 }]
     };
 
     // Suppress saveLayout() triggers during programmatic page switches so
