@@ -1850,6 +1850,12 @@
 
     function saveLayout() {
         if (!hccGrid) return;
+        // Don't persist layout while we're mid-page-switch — would clobber
+        // the user's HOME arrangement with per-page sizing
+        if (suppressSave) return;
+        // Only save when we're on HOME — HOME is the user-customizable
+        // canvas; per-page layouts are programmatic and shouldn't persist
+        if (currentPage !== 'home') return;
         var items = hccGrid.getGridItems();
         var layout = items.map(function(el) {
             return {
@@ -1881,20 +1887,30 @@
 
     // Dedicated page layouts: panels get resized for full-page view
     var PAGE_LAYOUTS = {
-        pihole:   [{ id: 'pihole', w: 12, h: 10 }],
-        servers:  [{ id: 'servers', w: 12, h: 10 }],
+        pihole:   [{ id: 'pihole', w: 8, h: 12 }, { id: 'qmonitor', w: 4, h: 12 }],
+        servers:  [{ id: 'servers', w: 12, h: 12 }],
         per730:   [{ id: 'per730', w: 12, h: 12 }],
-        firewall: [{ id: 'firewall', w: 6, h: 8 }, { id: 'netwatch', w: 6, h: 8 }],
-        network:  [{ id: 'bandwidth', w: 6, h: 6 }, { id: 'dhcp', w: 6, h: 6 }],
-        router:   [{ id: 'router', w: 5, h: 6 }, { id: 'logs', w: 7, h: 6 }],
-        monitor:  [{ id: 'overview', w: 4, h: 5 }, { id: 'targets', w: 4, h: 5 }, { id: 'netwatch', w: 4, h: 5 }],
+        firewall: [{ id: 'firewall', w: 6, h: 10 }, { id: 'netwatch', w: 6, h: 10 }],
+        network:  [{ id: 'bandwidth', w: 6, h: 8 }, { id: 'dhcp', w: 6, h: 8 }],
+        router:   [{ id: 'router', w: 5, h: 8 }, { id: 'logs', w: 7, h: 8 }],
+        monitor:  [
+            { id: 'overview', w: 4, h: 5 },
+            { id: 'targets',  w: 4, h: 5 },
+            { id: 'netwatch', w: 4, h: 5 },
+            { id: 'qmonitor', w: 12, h: 6 }
+        ],
         control:  [{ id: 'control', w: 12, h: 12 }]
     };
+
+    // Suppress saveLayout() triggers during programmatic page switches so
+    // we don't overwrite the user's saved HOME layout with per-page sizing.
+    var suppressSave = false;
 
     function switchPage(pageId) {
         if (pageId === currentPage) return;
 
-        // Save HOME layout before leaving
+        // Save HOME layout before leaving — capture the user's actual current
+        // arrangement so we can restore it perfectly on return
         if (currentPage === 'home' && hccGrid) {
             homeLayoutSaved = [];
             hccGrid.getGridItems().forEach(function(el) {
@@ -1909,6 +1925,7 @@
         }
 
         currentPage = pageId;
+        suppressSave = true;  // gate the auto-save 'change' listener
 
         // Show/hide panels based on data-pages
         var allItems = document.querySelectorAll('.grid-stack-item');
@@ -1927,7 +1944,7 @@
         if (pageId !== 'home' && PAGE_LAYOUTS[pageId] && hccGrid) {
             PAGE_LAYOUTS[pageId].forEach(function(layout) {
                 var el = document.querySelector('[gs-id="' + layout.id + '"]');
-                if (el) hccGrid.update(el, { w: layout.w, h: layout.h, x: undefined, y: undefined });
+                if (el) hccGrid.update(el, { w: layout.w, h: layout.h, autoPosition: true });
             });
         }
 
@@ -1941,7 +1958,7 @@
 
         if (hccGrid) {
             hccGrid.batchUpdate(false);
-            hccGrid.compact();
+            if (pageId !== 'home') hccGrid.compact();
         }
 
         // Update sidebar active state
@@ -1949,11 +1966,13 @@
             li.classList.toggle('active', li.dataset.page === pageId);
         });
 
-        // Re-apply effects after layout change
+        // Lift the save gate after the grid settles
         setTimeout(function() {
+            suppressSave = false;
+            // Re-apply effects after layout change
             if (typeof window._hccApplyArcs === 'function') window._hccApplyArcs();
             if (typeof window._hccApplyRings === 'function') window._hccApplyRings();
-        }, 200);
+        }, 300);
     }
 
     function buildNetworkPopup() {
