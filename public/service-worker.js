@@ -16,7 +16,7 @@
 // Bump SW_VERSION on every deploy so returning users pick up the new
 // build instead of being pinned to an old cached shell.
 
-const SW_VERSION    = 'hcc-v1-2026-04-10';
+const SW_VERSION    = 'hcc-v2-2026-04-11';
 const SHELL_CACHE   = 'hcc-shell-' + SW_VERSION;
 const RUNTIME_CACHE = 'hcc-runtime-' + SW_VERSION;
 
