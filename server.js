@@ -21,13 +21,22 @@ const { Poller } = require('./services/poller');
 const app = express();
 const PORT = process.env.PORT || 3080;
 
+// Session secret must be explicitly set — no silent weak fallback.
+// Generate with: openssl rand -hex 32
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
+    console.error('[HCC] FATAL: SESSION_SECRET env var must be set and at least 32 characters.');
+    console.error('[HCC] Generate one with: openssl rand -hex 32');
+    process.exit(1);
+}
+
 // Security headers — CSP disabled (internal network only)
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 
 // Session config
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'hcc-default-secret-change-me',
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
