@@ -2,8 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>HCC // DASHBOARD</title>
+
+    <!-- ── PWA ── -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#00d4ff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HCC">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+
     <link rel="stylesheet" href="/vendor/gridstack/gridstack.min.css">
     <link rel="stylesheet" href="/css/hcc.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -216,5 +228,39 @@
     <script src="/vendor/gridstack/gridstack-all.js"></script>
     <script src="/js/effects.js"></script>
     <script src="/js/dashboard.js"></script>
+
+    <!-- ── PWA: register service worker ── -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+                .then(function (reg) {
+                    // Check for updates every 5 min while the app is open
+                    setInterval(function () { reg.update(); }, 5 * 60 * 1000);
+                    // When a new worker finishes installing, activate it
+                    // immediately so users get the latest build on refresh.
+                    reg.addEventListener('updatefound', function () {
+                        var installing = reg.installing;
+                        if (installing) {
+                            installing.addEventListener('statechange', function () {
+                                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                                    installing.postMessage({ type: 'SKIP_WAITING' });
+                                }
+                            });
+                        }
+                    });
+                })
+                .catch(function (err) { console.warn('[HCC] SW registration failed:', err); });
+            // Reload the page when a new SW takes control, so the active
+            // tab picks up the new build immediately.
+            var reloading = false;
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (reloading) return;
+                reloading = true;
+                window.location.reload();
+            });
+        });
+    }
+    </script>
 </body>
 </html>
