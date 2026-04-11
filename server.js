@@ -10,6 +10,7 @@ process.on('unhandledRejection', function(err) {
 
 const express = require('express');
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const helmet = require('helmet');
 const path = require('path');
 const authRoutes = require('./routes/auth');
@@ -34,11 +35,20 @@ if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 
-// Session config
+// Session config — file-backed store so sessions survive container
+// recreations (rebuilds, docker restarts, host reboots). Files are
+// written to /app/data/sessions which is a persistent volume.
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    store: new FileStore({
+        path: path.join(__dirname, 'data', 'sessions'),
+        ttl: 24 * 60 * 60,          // seconds — matches cookie maxAge
+        reapInterval: 60 * 60,      // prune expired sessions hourly
+        retries: 0,                 // don't retry — return fresh session on read failure
+        logFn: function() {},       // silent — no dev-console noise
+    }),
     cookie: {
         secure: false,
         httpOnly: true,
