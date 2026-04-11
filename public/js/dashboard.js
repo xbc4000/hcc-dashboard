@@ -2029,7 +2029,10 @@
             });
         }
 
-        // Collect visible panels and add them with their target positions
+        // Collect visible panels and add them with their target positions.
+        // IMPORTANT: gridstack's makeWidget() -> _writeAttr() REMOVES gs-id from
+        // the element if the options we pass don't include an `id`. That would
+        // break subsequent snapshot/lookup passes. So always pass id explicitly.
         var visiblePanels = document.querySelectorAll('.grid-stack-item:not(.hcc-page-hidden)');
         visiblePanels.forEach(function (el) {
             var id = el.getAttribute('gs-id');
@@ -2037,13 +2040,13 @@
             var addOpts;
             if (target && target.x !== undefined && target.y !== undefined) {
                 // Saved user layout — exact position
-                addOpts = { x: target.x, y: target.y, w: target.w, h: target.h };
+                addOpts = { id: id, x: target.x, y: target.y, w: target.w, h: target.h };
             } else if (target) {
                 // Default layout — size only, auto-position
-                addOpts = { w: target.w, h: target.h, autoPosition: true };
+                addOpts = { id: id, w: target.w, h: target.h, autoPosition: true };
             } else {
                 // No layout entry — keep current attrs, auto-position
-                addOpts = { autoPosition: true };
+                addOpts = { id: id, autoPosition: true };
             }
             try { hccGrid.makeWidget(el, addOpts); } catch (e) {}
         });
